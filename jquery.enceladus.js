@@ -1,6 +1,6 @@
 /*******************************************************************************
- * Enceladus Version: 0.1 Jason Lawrence (2009) License: GPLv3
- * (http://www.gnu.org/licenses/gpl.txt)
+ * Enceladus Version: 0.1 Jason Lawrence (2009)
+ * License: GPLv3 (http://www.gnu.org/licenses/gpl.txt)
  * 
  * The purpose of Enceladus is primarily to simplify grid-based rendering for
  * the HTML canvas object. The project was inspired primarily by my JSTetris
@@ -22,25 +22,27 @@
 
 	// A Tango palette to play around with.
 	var tango = [
-            [ "#fce94f", "#edd400", "#c4a000" ], // Butter
-			[ "#8ae234", "#73d216", "#4e9a06" ], // Chameleon
-			[ "#e9b96e", "#c17d11", "#8f5902" ], // Chocolate
-			[ "#fcaf3e", "#f57900", "#ce5c00" ], // Orange
-			[ "#ad7fa8", "#75507b", "#5c3566" ], // Plum
-			[ "#ef2929", "#cc0000", "#a40000" ], // Scarlet Red
-			[ "#729fcf", "#3465a4", "#204a87" ]  // Sky Blue
+		[ "#fce94f", "#edd400", "#c4a000" ], // Butter
+		[ "#8ae234", "#73d216", "#4e9a06" ], // Chameleon
+		[ "#e9b96e", "#c17d11", "#8f5902" ], // Chocolate
+		[ "#fcaf3e", "#f57900", "#ce5c00" ], // Orange
+		[ "#ad7fa8", "#75507b", "#5c3566" ], // Plum
+		[ "#ef2929", "#cc0000", "#a40000" ], // Scarlet Red
+		[ "#729fcf", "#3465a4", "#204a87" ]  // Sky Blue
 	];
 
 	var tango_rgba = [
-			[ 'rgba(252,233, 79,', 'rgba(237,212,  0,', 'rgba(196,160,  0,' ],
-			[ 'rgba(138,226, 52,', 'rgba(115,210, 22,', 'rgba( 78,154,  6,' ],
-			[ 'rgba(233,185,110,', 'rgba(193,125, 17,', 'rgba(143, 89,  2,' ],
-			[ 'rgba(252,175, 62,', 'rgba(245,121,  0,', 'rgba(206, 92,  0,' ],
-			[ 'rgba(173,127,168,', 'rgba(117, 80,123,', 'rgba( 92, 53,102,' ],
-			[ 'rgba(239, 41, 41,', 'rgba(204,  0,  0,', 'rgba(164,  0,  0,' ],
-			[ 'rgba(114,159,207,', 'rgba( 52,101,164,', 'rgba( 32, 74,135,' ] ];
+		[ 'rgba(252,233, 79,', 'rgba(237,212,  0,', 'rgba(196,160,  0,' ], // Butter
+		[ 'rgba(138,226, 52,', 'rgba(115,210, 22,', 'rgba( 78,154,  6,' ], // Chameleon
+		[ 'rgba(233,185,110,', 'rgba(193,125, 17,', 'rgba(143, 89,  2,' ], // Chocolate
+		[ 'rgba(252,175, 62,', 'rgba(245,121,  0,', 'rgba(206, 92,  0,' ], // Orange
+		[ 'rgba(173,127,168,', 'rgba(117, 80,123,', 'rgba( 92, 53,102,' ], // Plum
+		[ 'rgba(239, 41, 41,', 'rgba(204,  0,  0,', 'rgba(164,  0,  0,' ], // Scarlet Red
+		[ 'rgba(114,159,207,', 'rgba( 52,101,164,', 'rgba( 32, 74,135,' ]  // Sky Blue
+	];
 
-	var jlaw_colors = [ [ '#00a8e2' ] // Icy Blue
+	var jlaw_colors = [
+		[ '#00a8e2' ] // Icy Blue
 	];
 
 	/**
@@ -145,6 +147,37 @@
 
 	};
 
+
+	/**
+	 * Draw effect. Draws a pixel with a specified color.
+	 */
+	drawEffect = function(next){
+
+		return [ -1, -1, -1, 1, next];
+
+	};
+
+	/**
+	 * Clear effect. Clears the pixel.
+	 */
+	clearEffect = function(next){
+
+
+		return [ -2, -1, -1, 1, next ];
+
+	};
+
+	/**
+	 * End chain effect. Determines what to do after the animation.
+	 * 
+	 */
+	endChain = function(command){
+		command = command || '';
+		return [-3, command];
+
+	};
+
+
 	/**
 	 * Array deep copy. Needed to properly maintain effect chain integrity.
 	 * Method borrowed from:
@@ -214,7 +247,7 @@
 				if (ctx.matrix[x][y][1].length > 0) {
 
 					// Clear/Draw?
-					draw_flag = false;
+					draw_flag = true;
 
 					// Save context
 					ctx.save();
@@ -226,58 +259,64 @@
 					for (i = 0; i < ctx.matrix[x][y][1].length; i++) {
 						mt = ctx.matrix[x][y][1][i];
 
-						// Decrease the mutator value.
+						// TODO: Add an endchain op for running a function
+						// (case-1)
+						switch (mt[0]) {
+						case -3:
+							draw_flag = false;
+							if(mt[1] != null){ eval(mt[1]); }
+							break;
+						case -2:
+							ctx.clearRect(-1 * (w / 2), h / 2, w, -1 * h);
+							draw_flag = false;
+							break;
+						case -1:
+							// TODO: Find a better way to apply these styles.
+							if(mt[1] != null){
+								if(mt[1][2]) { ctx.globalAlpha = mt[1][2]; } else { ctx.globalAlpha = ctx.matrix[x][y][4]; }
+								if(mt[1][0]) { ctx.fillStyle = mt[1][0]; } else { ctx.fillStyle = ctx.matrix[x][y][2]; }
+								if(ctx.shadows){
+									if(mt[1][1]) { ctx.shadowStyle = mt[1][1]; } else { ctx.shadowStyle = ctx.matrix[x][y][3]; }
+									if(mt[1][3]) { ctx.shadowBlur = mt[1][3]; } else { ctx.shadowBlur = ctx.matrix[x][y][5]; }
+								}
+							}
+							break;
+						case 0:
+							mt[1] += mt[2];
+							ctx.globalAlpha = mt[1];
+							break;
+						case 1:
+							mt[1] += mt[2];
+							ctx.shadowBlur = mt[1];
+							break;
+						case 2:
+							mt[1][0] += mt[2][0];
+							mt[1][1] += mt[2][1];
+							mt[1][2] += mt[2][2];
+							ctx.fillStyle = rgbArrayToHex(mt[1]);
+							break;
+						case 3:
+							mt[1][0] += mt[2][0];
+							mt[1][1] += mt[2][1];
+							mt[1][2] += mt[2][2];
+							ctx.shadowColor = rgbArrayToHex(mt[1]);
+							break;
+						case 4:
+							mt[1][0] += mt[2][0];
+							mt[1][1] += mt[2][1];
+							ctx.scale(mt[1][0], mt[1][1]);
+							break;
+						}
+
+						// Decrease the mutator.
 						mt[3]--;
 
-						// TODO: Redesign the animation chaining system.
-						if (mt[3] < 0) {
-							//draw_flag = false;
-							if (mt[4] == -1) {
-								ctx.matrix[x][y][1].splice(i, 1);
-							} else if (mt[4] == -2) {
-								// TODO: Get rid of this case!
-								ctx.matrix[x][y][0] = 0;
-								ctx.matrix[x][y][1].splice(i, 1);
-							} else if (mt[4] != -1) {
-								ctx.matrix[x][y][1].splice(i, 1, mt[4]);
-							}
-
-						} else {
-							// Draw flag on.
-							draw_flag = true;
-
-							// TODO: Add an endchain op for running a function
-							// (case-1)
-							switch (mt[0]) {
-							case 0:
-								mt[1] += mt[2];
-								ctx.globalAlpha = mt[1];
-								break;
-							case 1:
-								mt[1] += mt[2];
-								ctx.shadowBlur = mt[1];
-								break;
-							case 2:
-								mt[1][0] += mt[2][0];
-								mt[1][1] += mt[2][1];
-								mt[1][2] += mt[2][2];
-								ctx.fillStyle = rgbArrayToHex(mt[1]);
-								break;
-							case 3:
-								mt[1][0] += mt[2][0];
-								mt[1][1] += mt[2][1];
-								mt[1][2] += mt[2][2];
-								ctx.shadowColor = rgbArrayToHex(mt[1]);
-								break;
-							case 4:
-								mt[1][0] += mt[2][0];
-								mt[1][1] += mt[2][1];
-								ctx.scale(mt[1][0], mt[1][1]);
-								break;
-							}
-							;
-
+						// Replace the endchain if the mutator is below 0.
+						if(mt[3] < 0){
+							draw_flag = false;
+							ctx.matrix[x][y][1].splice(i, 1, mt[4]);
 						}
+							
 
 					}
 
@@ -291,7 +330,8 @@
 					// Restore the context.
 					ctx.restore();
 
-				}
+				} 
+
 
 			}
 
@@ -303,28 +343,27 @@
 	 * Start the effects loop.
 	 */
 	$.fn.effectsLoop = function() {
-		if ($.browser.msie)
-			return;
+		if ($.browser.msie) { return; }
 		return this.each( function() {
 
 			// Initial checks...
-				if (this.context == null) {
-					return;
-				}
-				var context = this.context;
+			if (this.context == null) {
+				return;
+			}
+			var context = this.context;
 
-				// Return if an effects loop is already running on this context.
-				if (context.effects_interval != null) {
-					return;
-				}
+			// Return if an effects loop is already running on this context.
+			if (context.effects_interval != null) {
+				return;
+			}
 
-				// Initiate
-				context.effects = context.effects || effects;
-				context.effects_interval = setInterval( function() {
-					context.effects();
-				}, 32);
+			// Initiate
+			context.effects = context.effects || effects;
+			context.effects_interval = setInterval( function() {
+				context.effects();
+			}, 32);
 
-			});
+		});
 
 	};
 
@@ -399,45 +438,66 @@
 	};
 
 	/**
-	 * Initialize colors / shadows. TODO: Configurability.
+	 * Initialize colors. TODO: Configurability.
+     	 * TODO: Accept a block generator function.
 	 */
 	$.fn.blockStyle = function() {
-		if ($.browser.msie)
-			return;
+		if ($.browser.msie) { return; }
 		return this.each( function() {
 
 			// Defaulting to tango blue
-				this.defaultStyle = tango[6][0];
-				this.fillStyle = this.defaultStyle;
+			this.defaultStyle = tango[6][0];
+			this.fillStyle = this.defaultStyle;
 
-				// TODO: Calculate the shadow size and color.
-				this.max_shadow = 6;
+			// Default opacity.
+			this.defaultOpacity = 1.0;
 
-				this.defaultShadowBlur = this.max_shadow / 2;
-				this.shadowBlur = this.defaultShadowBlur;
-				this.defaultShadow = jlaw_colors[0];
-				this.shadowColor = this.defaultShadow;
+                	// Defaulting to shadows off
+                	this.shadows = false;
+                	this.max_shadow = 2;
+			this.defaultShadowBlur = this.max_shadow / 2;
+			this.defaultShadow = jlaw_colors[0];
 
-			});
+		});
 
 	};
+
+	/**
+	 * Initialize shadow settings (FF  >=3.5).
+	 */
+	$.fn.blockShadows = function(shadow) {
+		if ($.browser.msie) { return; }
+		return this.each( function() {
+			// TODO: Calculate the shadow size and color.
+			var ctx = this.context;
+
+			shadow = shadow || 6;
+
+			// Toggle shadows on.
+                	ctx.shadows = true;
+			ctx.max_shadow = shadow;
+
+			ctx.shadowBlur = ctx.defaultShadowBlur;
+			ctx.shadowColor = ctx.defaultShadow;
+
+		});
+	};
+                
 
 	/**
 	 * Initialize block size.
 	 */
 	$.fn.blockSize = function(x, y) {
-
-		if ($.browser.msie)
-			return;
+		if ($.browser.msie) { return; }
 		return this.each( function() {
 
 			// TODO: Auto calculation for a default block setting.
 
-				// Set the height and width.
-				this.dimensions = [ x, y ];
-				this.block_dimensions = [ this.width / x, this.height / y ];
+			// Set the height and width.
+			this.dimensions = [ x, y ];
+			this.block_dimensions = [ this.width / x, this.height / y ];
 
-			});
+		});
 
 	};
 
@@ -445,27 +505,25 @@
 	 * Initialize block shape.
 	 */
 	$.fn.blockShape = function(radix) {
-
-		if ($.browser.msie)
-			return;
+		if ($.browser.msie) { return; }
 		return this.each( function() {
 
 			//var radix = block_radix;
-				radix = radix || 15;
+			radix = radix || 15;
 
-				// Make sure the radix given is compatible with the actual block
-				// dimensions.
-				if (radix > this.block_dimensions[0] / 2) {
-					radix = this.block_dimensions[0] / 2;
-				}
-				if (radix > this.block_dimensions[1] / 2) {
-					radix = this.block_dimensions[1] / 2;
-				}
+			// Make sure the radix given is compatible with the actual block
+			// dimensions.
+			if (radix > this.block_dimensions[0] / 2) {
+				radix = this.block_dimensions[0] / 2;
+			}
+			if (radix > this.block_dimensions[1] / 2) {
+				radix = this.block_dimensions[1] / 2;
+			}
 
-				this.hcoeff_1 = radix / this.block_dimensions[0];
-				this.vcoeff_1 = radix / this.block_dimensions[1];
+			this.hcoeff_1 = radix / this.block_dimensions[0];
+			this.vcoeff_1 = radix / this.block_dimensions[1];
 
-			});
+		});
 
 	};
 
@@ -473,40 +531,45 @@
 	 * Initialize the rendering context.
 	 */
 	$.fn.initContext = function() {
-		if ($.browser.msie)
-			return;
+		if ($.browser.msie) { return; }
 		return this.each( function() {
 
 			this.context = this.getContext('2d');
 
 			// Set some useful attributes on the context.
-				this.context.height = this.height;
-				this.context.width = this.width;
-			});
+			this.context.height = this.height;
+			this.context.width = this.width;
+		});
 	};
 
 	/**
 	 * Initialize a rendering matrix.
 	 */
 	$.fn.buildMatrix = function(x, y) {
-		if ($.browser.msie)
-			return;
+		if ($.browser.msie) { return; }
 		return this.each( function() {
 
 			// Build the context matrix.
-				this.matrix = new Array(x);
-				for (i = 0; i < x; i++) {
-					this.matrix[i] = new Array(y);
-					for (r = 0; r < y; r++) {
-						// TODO: These attributes.
-						// 0: type, 1: effects array, 2: current color, 3:
-						// current shadow color
-						// 4: current opacity, 5: current shadow blur.
-						this.matrix[i][r] = [ 0, [] ];
-					}
+			this.matrix = new Array(x);
+			for (i = 0; i < x; i++) {
+				this.matrix[i] = new Array(y);
+				for (r = 0; r < y; r++) {
+					// TODO: These attributes.
+					// 0: type, 1: effects array, 2: current color, 3:
+					// current shadow color
+					// 4: current opacity, 5: current shadow blur.
+					this.matrix[i][r] = [
+						0,
+						[],
+						this.defaultStyle,
+						this.defaultShadow,
+						this.defaultOpacity,
+						this.defaultShadowBlur
+					];
 				}
+			}
 
-			});
+		});
 
 	};
 
@@ -514,8 +577,7 @@
 	 * Render a cool ghostly block effect on the selected canvas.
 	 */
 	$.fn.ghostBlocks = function(block_num, duration, speed) {
-		if ($.browser.msie)
-			return;
+		if ($.browser.msie) { return; }
 		return this.each( function() {
 
 			if (this.context == null) {
@@ -528,56 +590,58 @@
 			$(this).effectsLoop();
 
 			// Ghost animation.
-				opacity = 0.8;
+			opacity = 0.8;
 
-				step = 10;
+			step = 10;
+
+			//cmd = 'context.matrix'
+
+			// Template animations.
+			opFade = opEffect(0.0, opacity, step, opEffect(opacity, 0.0, step, endChain(2)));
+			scaleFade = scaleEffect(0.5, 0.5, 1.0, 1.0, step, scaleEffect(1.0, 1.0, 0.5, 0.5, step, endChain(2)));
+
+			var ghostFade = [ opFade, scaleFade ];
+
+                	if(context.shadows == true){
 				end_blur = context.max_shadow - 1;
 				start_blur = context.defaultShadowBlur;
-
-				// Template animations.
-				opFade = opEffect(0.0, opacity, step, opEffect(opacity, 0.0,
-						step, -2));
 				blurFade = blurEffect(start_blur, end_blur, step, blurEffect(
-						end_blur, start_blur, step, -2));
-				scaleFade = scaleEffect(0.5, 0.5, 1.0, 1.0, step, scaleEffect(
-						1.0, 1.0, 0.5, 0.5, step, -2));
+				end_blur, start_blur, step, endChain(2)));
+				ghostFade.push(blurFade);
+			}
 
-				var ghostFade = [ opFade, blurFade, scaleFade ];
+			// Draw random blocks at the specified interval.
+			context.random_interval = setInterval( function() {
+				randomBlock(context, block_num, ghostFade);
+			}, speed);
 
-				// Draw random blocks at the specified interval.
-				context.random_interval = setInterval( function() {
-					randomBlock(context, block_num, ghostFade);
-				}, speed);
+			if (duration != null) {
+				setTimeout( 'clearInterval(' + context.random_interval + ')', duration);
+			}
 
-				if (duration != null) {
-					setTimeout(
-							'clearInterval(' + context.random_interval + ')',
-							duration);
-				}
-
-			});
+		});
 	};
 
 	/**
 	 * Initialize a rendering grid.
 	 */
 	$.fn.gridSetup = function(x, y, block_radix) {
-		if ($.browser.msie)
-			return;
+		if ($.browser.msie) { return; }
 		return this.each( function() {
 
 			// Initialize the context for this canvas.
-				$(this).initContext();
+			$(this).initContext();
 
-				// Initialize block size,shape,colors,shadows.
-				$(this.context).blockSize(x, y);
-				$(this.context).blockShape(block_radix);
-				$(this.context).blockStyle();
+			// Initialize block size,shape,colors,shadows.
+			$(this.context).blockSize(x, y);
+			$(this.context).blockShape(block_radix);
+			$(this.context).blockStyle();
+                	//$(this.context).blockShadows();
 
-				// Build the context grid.
-				$(this.context).buildMatrix(x, y);
+			// Build the context grid.
+			$(this.context).buildMatrix(x, y);
 
-			});
+		});
 	};
 
 	/**
@@ -585,8 +649,7 @@
 	 * element (the element that actually receives the mouse gestures)
 	 */
 	$.fn.glowTouch = function(canvas_elem, color2, color1) {
-		if ($.browser.msie)
-			return;
+		if ($.browser.msie) { return; }
 		return this.each( function() {
 
 			if (this.context == null) {
@@ -598,95 +661,99 @@
 			color2 = color2 || tango[1][0];
 
 			// Ensure that the effects loop is initialized (idempotent).
-				$(this).effectsLoop();
+			$(this).effectsLoop();
 
-				// If no canvas element is specified, assume that this canvas
-				// will receive mouse events.
-				canvas_elem = canvas_elem || this;
+			// If no canvas element is specified, assume that this canvas
+			// will receive mouse events.
+			canvas_elem = canvas_elem || this;
 
-				// One-way fade out animations.
-				opFadeOut = opEffect(1.0, 0.0, 10, -1);
-				blurFadeOut = blurEffect(10, 0.0, 10, -1);
-				colorFadeOut = colorFadeEffect(color2, color1, 10, -1);
-				shadowFadeOut = shadowColorFadeEffect(color2, color1, 10, -1);
+			// One-way fade out animations.
+			opFadeOut = opEffect(1.0, 0.0, 10, endChain(1));
+			colorFadeOut = colorFadeEffect(color2, color1, 10, endChain(1));
+			scaleUp = scaleEffect(1.0, 1.0, 0.5, 0.5, 10, endChain(1));
 
-				var fadeOutSet = [ opFadeOut, blurFadeOut, colorFadeOut,
-						shadowFadeOut ];
+			var fadeOutSet = [ opFadeOut, colorFadeOut, scaleUp ];
 
-				// One-way fade in animations.
-				opFadeIn = opEffect(0.0, 1.0, 10, -1);
-				blurFadeIn = blurEffect(0, 10, 10, -1);
-				colorFadeIn = colorFadeEffect(color1, color2, 10, -1);
-				shadowFadeIn = shadowColorFadeEffect(color1, color2, 10, -1);
+			// One-way fade in animations.
+			opFadeIn = opEffect(0.0, 1.0, 10, endChain(1));
+			colorFadeIn = colorFadeEffect(color1, color2, 10, endChain(1));
+   			scaleOut = scaleEffect(0.5, 0.5, 1.0, 1.0, 10, endChain(1));
 
-				var fadeInSet = [ opFadeIn, blurFadeIn, colorFadeIn,
-						shadowFadeIn ];
+			var fadeInSet = [ opFadeIn, colorFadeIn, scaleOut ];
 
-				// Handle mouseout events correctly by fading the last piece
-				// touched.
-				$(canvas_elem)
-						.mouseout(
-								function() {
 
-									if (ctx.current_piece != null
-											&& ctx.current_piece[0] != -1
-											&& ctx.current_piece[1] != -1) {
+                	if(ctx.shadows){
+				bm = ctx.max_shadow;
+				blurFadeOut = blurEffect(bm, 0.0, 10, endChain(1));
+				shadowFadeOut = shadowColorFadeEffect(color2, color1, 10, endChain(1));
+				
+				blurFadeIn = blurEffect(0, bm, 10, endChain(1));
+				shadowFadeIn = shadowColorFadeEffect(color1, color2, 10, endChain(1));
 
-										ctx.matrix[ctx.current_piece[0]][ctx.current_piece[1]][1] = copyEffect(fadeOutSet);
-										ctx.current_piece = [ -1, -1 ];
-									}
+				fadeOutSet.push(blurFadeOut);
+				fadeOutSet.push(shadowFadeOut);
 
-								});
+				fadeInSet.push(blurFadeIn);
+				fadeInSet.push(shadowFadeIn);
 
-				// Fade in the piece the mouse is on, and fade out the last
-				// piece it was on if necessary.
-				$(canvas_elem)
-						.mousemove( function(e) {
+			}
 
-							// Determine mouse position
-								px = e.pageX - this.offsetLeft;
-								py = e.pageY - this.offsetTop;
 
-								// Retrieve canvas context
-								// Map mouse to grid box
-								grid_x = Math.floor((px)
-										/ (ctx.block_dimensions[0]));
-								grid_y = Math.floor((py)
-										/ (ctx.block_dimensions[1]));
-
-								if (ctx.current_piece == null) {
-									ctx.current_piece = [ -1, -1 ];
-								} else if ((ctx.current_piece[0] == grid_x)
-										&& (ctx.current_piece[1] == grid_y)) {
-									return;
-								} else {
-
-									// Do a fade out on the last piece.
-									if ((ctx.current_piece[0] >= 0)
-											&& (ctx.current_piece[1] >= 0)) {
-										ctx.matrix[ctx.current_piece[0]][ctx.current_piece[1]][1] = copyEffect(fadeOutSet);
-									}
-
-									// Set this piece as the current piece.
-									ctx.current_piece[0] = grid_x;
-									ctx.current_piece[1] = grid_y;
-
-									ctx.matrix[grid_x][grid_y][1] = copyEffect(fadeInSet);
-
-								}
-
-							});
+			// Handle mouseout events correctly by fading the last piece
+			// touched.
+			$(canvas_elem).mouseout(function() {
+				if (ctx.current_piece != null
+					&& ctx.current_piece[0] != -1
+					&& ctx.current_piece[1] != -1) {
+					ctx.matrix[ctx.current_piece[0]][ctx.current_piece[1]][1] = copyEffect(fadeOutSet);
+					ctx.current_piece = [ -1, -1 ];
+				}
 
 			});
+
+			// Fade in the piece the mouse is on, and fade out the last
+			// piece it was on if necessary.
+			$(canvas_elem).mousemove( function(e) {
+
+				// Determine mouse position
+				px = e.pageX - this.offsetLeft;
+				py = e.pageY - this.offsetTop;
+
+				// Retrieve canvas context
+				// Map mouse to grid box
+				grid_x = Math.floor((px) / (ctx.block_dimensions[0]));
+				grid_y = Math.floor((py) / (ctx.block_dimensions[1]));
+
+				if (ctx.current_piece == null) {
+					ctx.current_piece = [ -1, -1 ];
+				} else if ((ctx.current_piece[0] == grid_x) && (ctx.current_piece[1] == grid_y)) {
+					return;
+				} else {
+					// Do a fade out on the last piece.
+					if ((ctx.current_piece[0] >= 0) && (ctx.current_piece[1] >= 0)) {
+						ctx.matrix[ctx.current_piece[0]][ctx.current_piece[1]][1] = copyEffect(fadeOutSet);
+					}
+
+					// Set this piece as the current piece.
+					ctx.current_piece[0] = grid_x;
+					ctx.current_piece[1] = grid_y;
+
+					ctx.matrix[grid_x][grid_y][1] = copyEffect(fadeInSet);
+
+				}
+
+			});
+
+		});
 	};
+
 
 	/**
 	 * Draw the Hacker Emblem.
 	 * 
 	 */
 	$.fn.drawGlider = function() {
-		if ($.browser.msie)
-			return;
+		if ($.browser.msie) { return; }
 		return this.each( function() {
 			if (this.context == null) {
 				return;
@@ -696,59 +763,62 @@
 			$(this).effectsLoop();
 
 			// Find the top left point of the area we will center the Glider on.
-				tl = [ Math.floor((ctx.dimensions[0] / 2) - 1),
-						Math.floor((ctx.dimensions[1] / 2) - 1) ];
+			tl = [	Math.floor((ctx.dimensions[0] / 2) - 1),
+				Math.floor((ctx.dimensions[1] / 2) - 1) ];
 
-				// Draw points. (we can copy the effect here with slice(), as
-				// the array is flat.)
-				var fadeIn = opEffect(0.0, 1.0, 10, -1);
-				ctx.matrix[tl[0] + 1][tl[1]][1].push(fadeIn.slice());
-				ctx.matrix[tl[0] + 2][tl[1] + 1][1].push(fadeIn.slice());
-				ctx.matrix[tl[0]][tl[1] + 2][1].push(fadeIn.slice());
-				ctx.matrix[tl[0] + 1][tl[1] + 2][1].push(fadeIn.slice());
-				ctx.matrix[tl[0] + 2][tl[1] + 2][1].push(fadeIn.slice());
+			// Draw points. (we can copy the effect here with slice(), as
+			// the array is flat.)
+			var fadeIn = opEffect(0.0, 1.0, 10, -1);
+			ctx.matrix[tl[0] + 1][tl[1]][1].push(fadeIn.slice());
+			ctx.matrix[tl[0] + 2][tl[1] + 1][1].push(fadeIn.slice());
+			ctx.matrix[tl[0]][tl[1] + 2][1].push(fadeIn.slice());
+			ctx.matrix[tl[0] + 1][tl[1] + 2][1].push(fadeIn.slice());
+			ctx.matrix[tl[0] + 2][tl[1] + 2][1].push(fadeIn.slice());
 
-				ctx.matrix[tl[0] + 1][tl[1]][0] = 1;
-				ctx.matrix[tl[0] + 2][tl[1] + 1][0] = 1;
-				ctx.matrix[tl[0]][tl[1] + 2][0] = 1;
-				ctx.matrix[tl[0] + 1][tl[1] + 2][0] = 1;
-				ctx.matrix[tl[0] + 2][tl[1] + 2][0] = 1;
+			ctx.matrix[tl[0] + 1][tl[1]][0] = 1;
+			ctx.matrix[tl[0] + 2][tl[1] + 1][0] = 1;
+			ctx.matrix[tl[0]][tl[1] + 2][0] = 1;
+			ctx.matrix[tl[0] + 1][tl[1] + 2][0] = 1;
+			ctx.matrix[tl[0] + 2][tl[1] + 2][0] = 1;
 
-				// Animations (copied with copyEffect)
-				step = 10;
+			// Animations (copied with copyEffect)
+			step = 10;
+
+			var animSet = [
+					colorFadeEffect(tango[6][0], tango[1][0], step, 
+						colorFadeEffect(tango[1][0], tango[6][0], step, endChain(1))),
+					scaleEffect(1, 1, 0.75, 0.75, 10, 
+						scaleEffect(0.75, 0.75, 1.0, 1.0, 10, endChain(1))) ];
+
+                	if(ctx.shadows == true){
 				end_blur = ctx.max_shadow;
 				start_blur = ctx.defaultShadowBlur;
+				animSet.push(
+					shadowColorFadeEffect(tango[6][0], tango[1][0], step, 
+						shadowColorFadeEffect(tango[1][0], tango[6][0], step, endChain(1))));
+				animSet.push(
+					blurEffect(start_blur, end_blur, step, 
+						blurEffect(end_blur, start_blur, step, endChain(1))));
+			}
 
-				var animSet = [
-						colorFadeEffect(tango[6][0], tango[1][0], step,
-								colorFadeEffect(tango[1][0], tango[6][0], step,
-										-1)),
-						blurEffect(start_blur, end_blur, step, blurEffect(
-								end_blur, start_blur, step, -1)),
-						shadowColorFadeEffect(tango[6][0], tango[1][0], step,
-								shadowColorFadeEffect(tango[1][0], tango[6][0],
-										step, -1)),
-						scaleEffect(1, 1, 0.75, 0.75, 10, scaleEffect(0.75,
-								0.75, 1.0, 1.0, 10, -1)) ];
+			var animSet2 = [
+					opEffect(0.0, 0.6, 10, opEffect(0.6, 0.0, 10, endChain(1))),
+					scaleEffect(0.25, 0.25, 0.5, 0.5, 10, 
+						scaleEffect(0.5, 0.5, 0.25, 0.25, 10, endChain(1))) ];
 
-				var animSet2 = [
-						opEffect(0.0, 0.6, 10, opEffect(0.6, 0.0, 10, -1)),
-						scaleEffect(0.25, 0.25, 0.5, 0.5, 10, scaleEffect(0.5,
-								0.5, 0.25, 0.25, 10, -1)) ];
+			setInterval( function() {
+				used_val = true;
+				px = -1;
+				py = -1;
 
-				setInterval( function() {
-					used_val = true;
-					px = -1;
-					py = -1;
+				do {
+					px = Math.floor(Math.random() * ctx.dimensions[0]);
+					py = Math.floor(Math.random() * ctx.dimensions[1]);
 
-					do {
-						px = Math.floor(Math.random() * ctx.dimensions[0]);
-						py = Math.floor(Math.random() * ctx.dimensions[1]);
-
-						if (ctx.matrix[px][py][0] == 1) {
-							used_val = false;
-						} else {
-							//ctx.matrix[px][py][1] = copyEffect(animSet2);
+					if (ctx.matrix[px][py][0] == 1) {
+						used_val = false;
+					} else {
+						//ctx.matrix[px][py][1] = copyEffect(animSet2);
 					}
 
 				} while (used_val)
@@ -757,9 +827,10 @@
 
 			}, 2000);
 
-			});
+		});
 
 	};
+
 
 	/**
 	 * Conway's Game of Life Mode (FTW!).
