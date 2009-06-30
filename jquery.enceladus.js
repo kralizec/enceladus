@@ -204,6 +204,13 @@
 		return [-3, command];
 	};
 
+    /**
+     * Delayed command.
+     */
+    delayExec = function(ctx, delay, command){
+        ctx.cmd_stack.push([0, delay, command]);
+    }
+
 
 	/**
 	 * Array deep copy. Needed to properly maintain effect chain integrity.
@@ -269,6 +276,8 @@
 		w = ctx.block_dimensions[0];
 		h = ctx.block_dimensions[1];
 
+        // TODO: Store animation deltas more sanely.
+        // Execute grid allocated animations.
 		for (x = 0; x < ctx.dimensions[0]; x++) {
 			for (y = 0; y < ctx.dimensions[1]; y++) {
 				if (ctx.matrix[x][y][1].length > 0) {
@@ -355,6 +364,23 @@
 
 		}
 
+
+        // Execute delayed commands.
+        for (x = 0; x < ctx.cmd_stack.length; x++){
+            cmd = ctx.cmd_stack[x];            
+            switch(cmd[0]){
+                case 0: // Simple delayed command
+                    if(cmd[1] == 0){ eval(cmd[2]); }
+                    break;
+            }
+
+            cmd[1]--;
+            if(cmd[1] < 0){
+                ctx.cmd_stack.splice(x,1);
+            }
+
+        }
+
 	};
 
 	/**
@@ -396,8 +422,9 @@
 
 	/**
 	 * Start the effects loop.
+     * Specify number of times to execute, and framerate.
 	 */
-	$.fn.effectsLoop = function(frame_rate) {
+	$.fn.effectsLoop = function(count, frame_rate) {
 		if ($.browser.msie) { return; }
 		return this.each( function() {
 
@@ -629,6 +656,9 @@
 					];
 				}
 			}
+
+            // Build command stack.
+            this.cmd_stack = [];
 
 		});
 
