@@ -12,10 +12,12 @@
  * TODO: Conway's Game of Life
  * TODO: Simplily and clean up the interfaces.
  * TODO: Code in an audio equalizer effect.
- * TODO: Add a system for rendering different block types.
- * TODO: Binary display.
  * TODO: Make sure random block drawing can't overload the matrix capacity.
  * TODO: Store animation deltas in a quadtree for speed optimization.
+ * TODO: Support animation merging properly.
+ * TODO: Support block shape changing animations.
+ * TODO: Support multiple-color block color transitions.
+ * TODO: Support repeating animation chains that can halt on a condition.
  * 
  ******************************************************************************/
 ( function($) {
@@ -45,6 +47,35 @@
 		[ '#00a8e2' ] // Icy Blue
 	];
 
+
+	/************************
+	 * Defaults
+	 ************************/
+
+
+	/**
+	 * A quadtree for storing animation deltas.
+	 * TODO: Finish
+	 */
+	qtree = function(){
+
+		var pnode = this;
+
+		// Four child nodes
+		var nodes = [null, null, null, null];
+
+		return function(){
+
+			children = function(){
+				return nodes;
+			}
+
+
+		};
+
+	};
+
+
 	/**
 	 * Helper: Hex color to RGB array.
 	 */
@@ -68,7 +99,7 @@
 	 * the default. TODO: Detect bad values.
 	 */
 	colorFadeEffect = function(start_color, end_color, increment, next) {
-
+		
 		sc = [ -1, -1, -1 ];
 		ec = [ -1, -1, -1 ];
 
@@ -149,22 +180,20 @@
 
 
 	/**
-	 * Draw effect. Draws a pixel with a specified color.
+	 * Trigger a draw effect. Draws a pixel with a specified color.
 	 */
 	drawEffect = function(next){
 
-		return [ -1, -1, -1, 1, next];
+		return [ -1, null, null, 1, next];
 
 	};
+
 
 	/**
 	 * Clear effect. Clears the pixel.
 	 */
 	clearEffect = function(next){
-
-
 		return [ -2, -1, -1, 1, next ];
-
 	};
 
 	/**
@@ -172,9 +201,7 @@
 	 * 
 	 */
 	endChain = function(command){
-		command = command || '';
 		return [-3, command];
-
 	};
 
 
@@ -259,7 +286,7 @@
 					for (i = 0; i < ctx.matrix[x][y][1].length; i++) {
 						mt = ctx.matrix[x][y][1][i];
 
-						// TODO: Add an endchain op for running a function
+						// TODO: Add an endchain op for running a function after a given interval.
 						// (case-1)
 						switch (mt[0]) {
 						case -3:
@@ -271,15 +298,6 @@
 							draw_flag = false;
 							break;
 						case -1:
-							// TODO: Find a better way to apply these styles.
-							if(mt[1] != null){
-								if(mt[1][2]) { ctx.globalAlpha = mt[1][2]; } else { ctx.globalAlpha = ctx.matrix[x][y][4]; }
-								if(mt[1][0]) { ctx.fillStyle = mt[1][0]; } else { ctx.fillStyle = ctx.matrix[x][y][2]; }
-								if(ctx.shadows){
-									if(mt[1][1]) { ctx.shadowStyle = mt[1][1]; } else { ctx.shadowStyle = ctx.matrix[x][y][3]; }
-									if(mt[1][3]) { ctx.shadowBlur = mt[1][3]; } else { ctx.shadowBlur = ctx.matrix[x][y][5]; }
-								}
-							}
 							break;
 						case 0:
 							mt[1] += mt[2];
@@ -289,13 +307,13 @@
 							mt[1] += mt[2];
 							ctx.shadowBlur = mt[1];
 							break;
-						case 2:
+						case 2: // TODO: Color fades for multi-color draws.
 							mt[1][0] += mt[2][0];
 							mt[1][1] += mt[2][1];
 							mt[1][2] += mt[2][2];
 							ctx.fillStyle = rgbArrayToHex(mt[1]);
 							break;
-						case 3:
+						case 3: // TODO: Color fades for multi-color draws.
 							mt[1][0] += mt[2][0];
 							mt[1][1] += mt[2][1];
 							mt[1][2] += mt[2][2];
@@ -323,8 +341,8 @@
 					if (draw_flag) {
 
 						ctx.clearRect(-1 * (w / 2), h / 2, w, -1 * h);
-						drawRoundedBlock(ctx, x, y);
-
+						drawBlock(ctx, x, y);
+						
 					}
 
 					// Restore the context.
@@ -340,9 +358,9 @@
 	};
 
 	/**
-	 * Start the effects loop.
+	 * Set up the effects.
 	 */
-	$.fn.effectsLoop = function() {
+	$.fn.effectsSetup = function(){
 		if ($.browser.msie) { return; }
 		return this.each( function() {
 
@@ -357,51 +375,78 @@
 				return;
 			}
 
+
+			// Register the effects methods
+			context.shadowColorFadeEffect = shadowColorFadeEffect;
+			context.blurEffect = blurEffect;
+			context.opEffect = opEffect;
+			context.clearEffect = clearEffect;
+			context.drawEffect = drawEffect;
+			context.scaleEffect = scaleEffect;
+			context.endChain = endChain;
+			context.copyEffect = copyEffect;
+
 			// Initiate
 			context.effects = context.effects || effects;
+
+		});
+
+
+	};
+
+	/**
+	 * Start the effects loop.
+	 */
+	$.fn.effectsLoop = function(frame_rate) {
+		if ($.browser.msie) { return; }
+		return this.each( function() {
+
+			// Initial checks...
+			if (this.context == null) {
+				return;
+			}
+			var context = this.context;
+
+			// Return if an effects loop is already running on this context.
+			if (context.effects_interval != null) {
+				return;
+			}
+
+			// Check framerate
+			frame_rate = frame_rate || 32;
+
+
+			// Initiate
 			context.effects_interval = setInterval( function() {
 				context.effects();
-			}, 32);
+			}, frame_rate);
 
 		});
 
 	};
 
+
 	/**
-	 * Rendering Helper: Clip a rounded block area.
+	 * Halt the effects loop.
 	 */
-	clipRoundedBlock = function(ctx, x, y) {
+	$.fn.haltEffectsLoop = function(){
+		return this.each( function() {
+			// Initial checks...
+			if (this.context == null) {
+				return;
+			}
 
-		// shorthand for the radix coeffs
-		hc1 = ctx.hcoeff_1 * 2;
-		vc1 = ctx.vcoeff_1 * 2;
+			var context = this.context;
 
-		x = ctx.block_dimensions[0] / 2;// - ctx.max_shadow;
-		y = ctx.block_dimensions[1] / 2;// - ctx.max_shadow;
+			if(context.effects_interval != null){
+				clearInterval(context.effects_interval);
+				context.effects_interval = null;
+			}
 
-		xh1 = -1 * x * hc1;
-		xh2 = x * hc1;
-		yh1 = -1 * y * vc1;
-		yh2 = y * vc1;
-
-		ctx.beginPath();
-
-		ctx.moveTo(xh2, y);
-		ctx.lineTo(xh2, y);
-		ctx.quadraticCurveTo(x, y, x, yh2);
-		ctx.lineTo(x, yh1);
-		ctx.quadraticCurveTo(x, -1 * y, xh2, -1 * y);
-		ctx.lineTo(xh1, -1 * y);
-		ctx.quadraticCurveTo(-1 * x, -1 * y, -1 * x, yh1);
-		ctx.lineTo(-1 * x, yh2);
-		ctx.quadraticCurveTo(-1 * x, y, xh1, y);
-
-		ctx.closePath();
-
-		ctx.clip();
-
+		});
 	};
 
+	
 	/**
 	 * Rendering Helper: Draw a rounded block.
 	 * 
@@ -409,8 +454,8 @@
 	drawRoundedBlock = function(ctx, x, y) {
 
 		// shorthand for the radix coeffs
-		hc1 = ctx.hcoeff_1 * 2;
-		vc1 = ctx.vcoeff_1 * 2;
+		hc1 = ctx.hcoeff_1;// * 2;
+		vc1 = ctx.vcoeff_1;// * 2;
 
 		x = ctx.block_dimensions[0] / 2 - ctx.max_shadow;
 		y = ctx.block_dimensions[1] / 2 - ctx.max_shadow;
@@ -437,6 +482,7 @@
 
 	};
 
+
 	/**
 	 * Initialize colors. TODO: Configurability.
      	 * TODO: Accept a block generator function.
@@ -445,9 +491,14 @@
 		if ($.browser.msie) { return; }
 		return this.each( function() {
 
+			// Default block drawing func:
+			drawBlock = drawRoundedBlock;
+
 			// Defaulting to tango blue
 			this.defaultStyle = tango[6][0];
 			this.fillStyle = this.defaultStyle;
+			this.color_set = 6;//this.defaultStyle.slice();
+			this.shadow_set = 6;
 
 			// Default opacity.
 			this.defaultOpacity = 1.0;
@@ -456,7 +507,8 @@
                 	this.shadows = false;
                 	this.max_shadow = 2;
 			this.defaultShadowBlur = this.max_shadow / 2;
-			this.defaultShadow = jlaw_colors[0];
+			//this.defaultShadow = jlaw_colors[0];
+			this.defaultShadow = tango[6][0];
 
 		});
 
@@ -471,7 +523,8 @@
 			// TODO: Calculate the shadow size and color.
 			var ctx = this.context;
 
-			shadow = shadow || 6;
+			// TODO: Better calculation!
+			shadow = shadow || ctx.block_dimensions[0] - (ctx.block_dimensions[0] * 0.90);
 
 			// Toggle shadows on.
                 	ctx.shadows = true;
@@ -479,7 +532,6 @@
 
 			ctx.shadowBlur = ctx.defaultShadowBlur;
 			ctx.shadowColor = ctx.defaultShadow;
-
 		});
 	};
                 
@@ -513,19 +565,32 @@
 
 			// Make sure the radix given is compatible with the actual block
 			// dimensions.
-			if (radix > this.block_dimensions[0] / 2) {
-				radix = this.block_dimensions[0] / 2;
+			if (radix > this.block_dimensions[0]) {
+				radix = this.block_dimensions[0];
 			}
-			if (radix > this.block_dimensions[1] / 2) {
-				radix = this.block_dimensions[1] / 2;
+			if (radix > this.block_dimensions[1]) {
+				radix = this.block_dimensions[1];
 			}
 
-			this.hcoeff_1 = radix / this.block_dimensions[0];
-			this.vcoeff_1 = radix / this.block_dimensions[1];
+			// TODO: Verify this!
+			this.hcoeff_1 = (this.block_dimensions[0] - radix) / this.block_dimensions[0];
+			this.vcoeff_1 = (this.block_dimensions[1] - radix) / this.block_dimensions[1];
 
 		});
 
 	};
+
+
+	/**
+	 * Set the block drawing func.
+	 */
+	$.fn.setBlockFunc = function(func) {
+		if ($.browser.msie) { return; }
+		return this.each( function() {
+			drawBlock = func;
+		});
+	};
+
 
 	/**
 	 * Initialize the rendering context.
@@ -560,11 +625,7 @@
 					// 4: current opacity, 5: current shadow blur.
 					this.matrix[i][r] = [
 						0,
-						[],
-						this.defaultStyle,
-						this.defaultShadow,
-						this.defaultOpacity,
-						this.defaultShadowBlur
+						[]
 					];
 				}
 			}
@@ -640,6 +701,9 @@
 
 			// Build the context grid.
 			$(this.context).buildMatrix(x, y);
+
+			// Setup the effects.
+			$(this).effectsSetup();
 
 		});
 	};
