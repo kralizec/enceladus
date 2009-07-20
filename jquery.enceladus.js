@@ -48,49 +48,41 @@
 	];
 
 
+	// The palette object. Defaults to Tango.
+	var palette = [
+		[ "#fce94f", "#edd400", "#c4a000" ], // Butter
+		[ "#8ae234", "#73d216", "#4e9a06" ], // Chameleon
+		[ "#e9b96e", "#c17d11", "#8f5902" ], // Chocolate
+		[ "#fcaf3e", "#f57900", "#ce5c00" ], // Orange
+		[ "#ad7fa8", "#75507b", "#5c3566" ], // Plum
+		[ "#ef2929", "#cc0000", "#a40000" ], // Scarlet Red
+		[ "#729fcf", "#3465a4", "#204a87" ]  // Sky Blue
+	];
+
+
 	/************************
 	 * Defaults
 	 ************************/
 
 
 	/**
-	 * A quadtree for storing animation deltas.
-	 * TODO: Finish
-	 */
-	qtree = function(){
-
-		var pnode = this;
-
-		// Four child nodes
-		var nodes = [null, null, null, null];
-
-		return function(){
-
-			children = function(){
-				return nodes;
-			}
-
-
-		};
-
-	};
-
-
-	/**
 	 * Helper: Hex color to RGB array.
 	 */
 	hexToRGB = function(hex) {
-		return [ parseInt(hex.substring(1, 3), 16),
-				parseInt(hex.substring(3, 5), 16),
-				parseInt(hex.substring(5, 7), 16) ];
+		return [
+			parseInt(hex.substring(1, 3), 16),
+			parseInt(hex.substring(3, 5), 16),
+			parseInt(hex.substring(5, 7), 16)
+		];
 	};
 
 	/**
 	 * Helper: Assemble RGB color from array to hex.
 	 */
 	rgbArrayToHex = function(rgb) {
-		return '#' + rgb[0].toString(16) + rgb[1].toString(16)
-				+ rgb[2].toString(16);
+		return '#'	+ rgb[0].toString(16)
+					+ rgb[1].toString(16)
+					+ rgb[2].toString(16);
 	};
 
 	/**
@@ -473,42 +465,6 @@
 		});
 	};
 
-	
-	/**
-	 * Rendering Helper: Draw a rounded block.
-	 * 
-	 */
-	drawRoundedBlock = function(ctx, x, y) {
-
-		// shorthand for the radix coeffs
-		hc1 = ctx.hcoeff_1;// * 2;
-		vc1 = ctx.vcoeff_1;// * 2;
-
-		x = ctx.block_dimensions[0] / 2 - ctx.max_shadow;
-		y = ctx.block_dimensions[1] / 2 - ctx.max_shadow;
-
-		xh1 = -1 * x * hc1;
-		xh2 = x * hc1;
-		yh1 = -1 * y * vc1;
-		yh2 = y * vc1;
-
-		ctx.beginPath();
-
-		ctx.moveTo(xh2, y);
-		ctx.quadraticCurveTo(x, y, x, yh2);
-		ctx.lineTo(x, yh1);
-		ctx.quadraticCurveTo(x, -1 * y, xh2, -1 * y);
-		ctx.lineTo(xh1, -1 * y);
-		ctx.quadraticCurveTo(-1 * x, -1 * y, -1 * x, yh1);
-		ctx.lineTo(-1 * x, yh2);
-		ctx.quadraticCurveTo(-1 * x, y, xh1, y);
-
-		ctx.closePath();
-
-		ctx.fill();
-
-	};
-
 
 	/**
 	 * Initialize colors. TODO: Configurability.
@@ -530,9 +486,10 @@
 			// Default opacity.
 			this.defaultOpacity = 1.0;
 
-                	// Defaulting to shadows off
-                	this.shadows = false;
-                	this.max_shadow = 2;
+         	// Defaulting to shadows off
+            this.shadows = false;
+            this.max_shadow = 2;
+
 			this.defaultShadowBlur = this.max_shadow / 2;
 			//this.defaultShadow = jlaw_colors[0];
 			this.defaultShadow = tango[6][0];
@@ -554,7 +511,7 @@
 			shadow = shadow || ctx.block_dimensions[0] - (ctx.block_dimensions[0] * 0.90);
 
 			// Toggle shadows on.
-                	ctx.shadows = true;
+            ctx.shadows = true;
 			ctx.max_shadow = shadow;
 
 			ctx.shadowBlur = ctx.defaultShadowBlur;
@@ -664,6 +621,74 @@
 
 	};
 
+
+	/**
+	 * Initialize a rendering grid.
+	 */
+	$.fn.gridSetup = function(x, y, block_radix) {
+		if ($.browser.msie) { return; }
+		return this.each( function() {
+
+			// Initialize the context for this canvas.
+			$(this).initContext();
+
+			// Initialize block size,shape,colors,shadows.
+			$(this.context).blockSize(x, y);
+			$(this.context).blockShape(block_radix);
+			$(this.context).blockStyle();
+                	//$(this.context).blockShadows();
+
+			// Build the context grid.
+			$(this.context).buildMatrix(x, y);
+
+			// Setup the effects.
+			$(this).effectsSetup();
+
+		});
+	};
+
+
+	/////////////////
+	// Extras....
+	/////////////////
+
+	
+	/**
+	 * Rendering Helper: Draw a rounded block.
+	 * 
+	 */
+	drawRoundedBlock = function(ctx, x, y) {
+
+		// shorthand for the radix coeffs
+		hc1 = ctx.hcoeff_1;// * 2;
+		vc1 = ctx.vcoeff_1;// * 2;
+
+		x = ctx.block_dimensions[0] / 2 - ctx.max_shadow;
+		y = ctx.block_dimensions[1] / 2 - ctx.max_shadow;
+
+		xh1 = -1 * x * hc1;
+		xh2 = x * hc1;
+		yh1 = -1 * y * vc1;
+		yh2 = y * vc1;
+
+		ctx.beginPath();
+
+		ctx.moveTo(xh2, y);
+		ctx.quadraticCurveTo(x, y, x, yh2);
+		ctx.lineTo(x, yh1);
+		ctx.quadraticCurveTo(x, -1 * y, xh2, -1 * y);
+		ctx.lineTo(xh1, -1 * y);
+		ctx.quadraticCurveTo(-1 * x, -1 * y, -1 * x, yh1);
+		ctx.lineTo(-1 * x, yh2);
+		ctx.quadraticCurveTo(-1 * x, y, xh1, y);
+
+		ctx.closePath();
+
+		ctx.fill();
+
+	};
+
+
 	/**
 	 * Render a cool ghostly block effect on the selected canvas.
 	 */
@@ -709,31 +734,6 @@
 			if (duration != null) {
 				setTimeout( 'clearInterval(' + context.random_interval + ')', duration);
 			}
-
-		});
-	};
-
-	/**
-	 * Initialize a rendering grid.
-	 */
-	$.fn.gridSetup = function(x, y, block_radix) {
-		if ($.browser.msie) { return; }
-		return this.each( function() {
-
-			// Initialize the context for this canvas.
-			$(this).initContext();
-
-			// Initialize block size,shape,colors,shadows.
-			$(this.context).blockSize(x, y);
-			$(this.context).blockShape(block_radix);
-			$(this.context).blockStyle();
-                	//$(this.context).blockShadows();
-
-			// Build the context grid.
-			$(this.context).buildMatrix(x, y);
-
-			// Setup the effects.
-			$(this).effectsSetup();
 
 		});
 	};
