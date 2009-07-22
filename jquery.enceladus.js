@@ -107,8 +107,7 @@
 			alert('implement');
 		}
 
-		deltas = [ sc[0] - ec[0], sc[1] - ec[1], sc[2] - ec[2] ].map( function(
-				x) {
+		deltas = [ sc[0] - ec[0], sc[1] - ec[1], sc[2] - ec[2] ].map( function(x) {
 			if (Math.abs(x) < increment) {
 				return 1;
 			} else {
