@@ -81,8 +81,8 @@
 	 */
 	rgbArrayToHex = function(rgb) {
 		return '#'	+ rgb[0].toString(16)
-					+ rgb[1].toString(16)
-					+ rgb[2].toString(16);
+				+ rgb[1].toString(16)
+				+ rgb[2].toString(16);
 	};
 
 	/**
