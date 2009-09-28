@@ -243,12 +243,12 @@
 				px = Math.floor(Math.random() * ctx.dimensions[0]);
 				py = Math.floor(Math.random() * ctx.dimensions[1]);
 
-				if (ctx.matrix[px][py][0] == 0) {
+				if (ctx.getState(px, py) == 0) {
 					used_val = false;
-					ctx.matrix[px][py][0] = 1;
+					ctx.setState(px, py, 1);
 
 					// Set the animation.
-					ctx.matrix[px][py][1] = copyEffect(animation);
+					ctx.setAnim(px, py, copyEffect(animation));
 				} else {
 					safety_counter--;
 				}
@@ -269,91 +269,18 @@
 
         // TODO: Store animation deltas more sanely.
         // Execute grid allocated animations.
-		for (x = 0; x < ctx.dimensions[0]; x++) {
-			for (y = 0; y < ctx.dimensions[1]; y++) {
-				if (ctx.matrix[x][y][1].length > 0) {
+	
+	//for(i = 0; i < (h * w + w); i++){	
+	for (x = 0; x < ctx.dimensions[0]; x++) {
+		for (y = 0; y < ctx.dimensions[1]; y++) {
 
-					// Clear/Draw?
-					draw_flag = true;
-
-					// Save context
-					ctx.save();
-
-					// Translate origin to block center.
-					ctx.translate((x * w) + (w / 2), (y * h) + (h / 2));
-
-					// Iterate through the animation array.
-					for (i = 0; i < ctx.matrix[x][y][1].length; i++) {
-						mt = ctx.matrix[x][y][1][i];
-
-						// TODO: Add an endchain op for running a function after a given interval.
-						// (case-1)
-						switch (mt[0]) {
-						case -3:
-							draw_flag = false;
-							if(mt[1] != null){ eval(mt[1]); }
-							break;
-						case -2:
-							ctx.clearRect(-1 * (w / 2), h / 2, w, -1 * h);
-							draw_flag = false;
-							break;
-						case -1:
-							break;
-						case 0:
-							mt[1] += mt[2];
-							ctx.globalAlpha = mt[1];
-							break;
-						case 1:
-							mt[1] += mt[2];
-							ctx.shadowBlur = mt[1];
-							break;
-						case 2: // TODO: Color fades for multi-color draws.
-							mt[1][0] += mt[2][0];
-							mt[1][1] += mt[2][1];
-							mt[1][2] += mt[2][2];
-							ctx.fillStyle = rgbArrayToHex(mt[1]);
-							break;
-						case 3: // TODO: Color fades for multi-color draws.
-							mt[1][0] += mt[2][0];
-							mt[1][1] += mt[2][1];
-							mt[1][2] += mt[2][2];
-							ctx.shadowColor = rgbArrayToHex(mt[1]);
-							break;
-						case 4:
-							mt[1][0] += mt[2][0];
-							mt[1][1] += mt[2][1];
-							ctx.scale(mt[1][0], mt[1][1]);
-							break;
-						}
-
-						// Decrease the mutator.
-						mt[3]--;
-
-						// Replace the endchain if the mutator is below 0.
-						if(mt[3] < 0){
-							draw_flag = false;
-							ctx.matrix[x][y][1].splice(i, 1, mt[4]);
-						}
-							
-
-					}
-
-					if (draw_flag) {
-
-						ctx.clearRect(-1 * (w / 2), h / 2, w, -1 * h);
-						drawBlock(ctx, x, y);
-						
-					}
-
-					// Restore the context.
-					ctx.restore();
-
-				} 
-
-
-			}
-
+			i = y * ctx.dimensions[0] + x;
+		
+			if(ctx.agrid[i].length > 0){
+				ctx.renderFrame(i,x,y,w,h);
+			} 
 		}
+	}
 
 
         // Execute delayed commands.
@@ -361,7 +288,8 @@
             cmd = ctx.cmd_stack[x];            
             switch(cmd[0]){
                 case 0: // Simple delayed command
-                    if(cmd[1] == 0){ eval(cmd[2]); }
+                    //if(cmd[1] == 0){ eval(cmd[2]); }
+		    if(cmd[1] == 0){ cmd[2](); }
                     break;
             }
 
@@ -405,6 +333,95 @@
 
 			// Initiate
 			context.effects = context.effects || effects;
+
+			// Create rendering func
+			context.renderFrame = function(aind,x,y,w,h){
+
+					// Clear/Draw?
+					draw_flag = true;
+
+					// Save context
+					this.save();
+
+					// Translate origin to block center.
+					this.translate((x * w) + (w / 2), (y * h) + (h / 2));
+
+					// Iterate through the animation array.
+					//for (i = 0; i < ctx.matrix[x][y][1].length; i++) {
+					//	mt = ctx.matrix[x][y][1][i];
+					for (i = 0; i < this.agrid[aind].length; i++) {
+						mt = this.agrid[aind][i];
+
+
+						// TODO: Add an endchain op for running a function after a given interval.
+						// (case-1)
+						switch (mt[0]) {
+						case -3:
+							draw_flag = false;
+							// TODO: Don't use eval here. Pass a closure.
+							//if(mt[1] != null){ eval(mt[1]); }
+							if(mt[1] != null){ mt[1](); }	
+							break;
+						case -2:
+							this.clearRect(-1 * (w / 2), h / 2, w, -1 * h);
+							draw_flag = false;
+							break;
+						case -1:
+							break;
+						case 0:
+							mt[1] += mt[2];
+							this.globalAlpha = mt[1];
+							break;
+						case 1:
+							mt[1] += mt[2];
+							this.shadowBlur = mt[1];
+							break;
+						case 2: // TODO: Color fades for multi-color draws.
+							mt[1][0] += mt[2][0];
+							mt[1][1] += mt[2][1];
+							mt[1][2] += mt[2][2];
+							this.fillStyle = rgbArrayToHex(mt[1]);
+							break;
+						case 3: // TODO: Color fades for multi-color draws.
+							mt[1][0] += mt[2][0];
+							mt[1][1] += mt[2][1];
+							mt[1][2] += mt[2][2];
+							this.shadowColor = rgbArrayToHex(mt[1]);
+							break;
+						case 4:
+							mt[1][0] += mt[2][0];
+							mt[1][1] += mt[2][1];
+							this.scale(mt[1][0], mt[1][1]);
+							break;
+						}
+
+						// Decrease the mutator.
+						mt[3]--;
+
+						// Replace the endchain if the mutator is below 0.
+						if(mt[3] < 0){
+							draw_flag = false;
+							//ctx.matrix[x][y][1].splice(i, 1, mt[4]);
+
+							// TODO: Redo animation chaining. Make it flat.
+							// That should make for less overhead, and fewer errors.
+							this.agrid[aind].splice(i,1, mt[4]);
+						}
+							
+
+					}
+
+					if (draw_flag) {
+
+						this.clearRect(-1 * (w / 2), h / 2, w, -1 * h);
+						drawBlock.call(this, x, y);
+						
+					}
+
+					// Restore the context.
+					this.restore();
+
+			};
 
 		});
 
@@ -587,6 +604,48 @@
 			// Set some useful attributes on the context.
 			this.context.height = this.height;
 			this.context.width = this.width;
+
+			// TODO: Refactor this.
+			// TODO: Use inMap and coMap to transform the matrix into a 1d array.
+			this.context.coMap = function(x, y){
+				return y * this.dimensions[0] + x;
+			};
+			this.context.inMap = function(ind){
+				return [ ind % this.width, ind / this.width ];
+			};
+			this.context.registerAction = function(x, y){
+				if(this.matrix[x][y][1].length > 0){
+					this.actions.push([x,y]);
+				}
+			};
+			this.context.addAnim = function(x, y, act){
+				this.agrid[this.coMap(x,y)].push(act);
+
+				// Add the pixel to the action stack if necessary.
+				//this.registerAction(x, y);
+			};
+			this.context.setAnim = function(x, y, act_list){
+				this.agrid[this.coMap(x,y)] = act_list;
+				//this.registerAction(x, y);
+			};
+			this.context.resetAnim = function(x, y){
+				this.agrid[this.coMap(x,y)] = [];
+				// TODO: We need to get rid of the reference in this.actions!
+			};
+			this.context.setState = function(x, y, state){
+				this.sgrid[this.coMap(x,y)] = state;
+			};
+			this.context.getState = function(x, y){
+				return this.sgrid[this.coMap(x,y)];
+			};
+			this.context.setType = function(x, y, type){
+				this.tgrid[this.coMap(x,y)] = type;
+			};
+			this.context.getType = function(x, y){
+				return this.tgrid[this.coMap(x,y)];
+			};
+
+
 		});
 	};
 
@@ -597,21 +656,24 @@
 		if ($.browser.msie) { return; }
 		return this.each( function() {
 
-			// Build the context matrix.
-			this.matrix = new Array(x);
-			for (i = 0; i < x; i++) {
-				this.matrix[i] = new Array(y);
-				for (r = 0; r < y; r++) {
-					// TODO: These attributes.
-					// 0: type, 1: effects array, 2: current color, 3:
-					// current shadow color
-					// 4: current opacity, 5: current shadow blur.
-					this.matrix[i][r] = [
-						0,
-						[]
-					];
+				this.agrid = new Array(y * x + x);
+				this.sgrid = new Array(y * x + x);				
+
+				// TODO: Get rid of these and allow users to register their own additional state matrices.
+				this.tgrid = new Array(y * x + x);
+
+				for(i = 0; i < (y * x + x); i++){
+					this.agrid[i] = [];
+					this.sgrid[i] = 0;
+					this.tgrid[i] = 0;
 				}
-			}
+
+			// TODO: Virtual matrix
+			//this.matrix = function(){
+
+
+		// Build the actions stack
+		this.actions = [];
 
             // Build command stack.
             this.cmd_stack = [];
@@ -656,34 +718,34 @@
 	 * Rendering Helper: Draw a rounded block.
 	 * 
 	 */
-	drawRoundedBlock = function(ctx, x, y) {
+	drawRoundedBlock = function(x, y) {
 
 		// shorthand for the radix coeffs
-		hc1 = ctx.hcoeff_1;// * 2;
-		vc1 = ctx.vcoeff_1;// * 2;
+		hc1 = this.hcoeff_1;// * 2;
+		vc1 = this.vcoeff_1;// * 2;
 
-		x = ctx.block_dimensions[0] / 2 - ctx.max_shadow;
-		y = ctx.block_dimensions[1] / 2 - ctx.max_shadow;
+		x = this.block_dimensions[0] / 2 - this.max_shadow;
+		y = this.block_dimensions[1] / 2 - this.max_shadow;
 
 		xh1 = -1 * x * hc1;
 		xh2 = x * hc1;
 		yh1 = -1 * y * vc1;
 		yh2 = y * vc1;
 
-		ctx.beginPath();
+		this.beginPath();
 
-		ctx.moveTo(xh2, y);
-		ctx.quadraticCurveTo(x, y, x, yh2);
-		ctx.lineTo(x, yh1);
-		ctx.quadraticCurveTo(x, -1 * y, xh2, -1 * y);
-		ctx.lineTo(xh1, -1 * y);
-		ctx.quadraticCurveTo(-1 * x, -1 * y, -1 * x, yh1);
-		ctx.lineTo(-1 * x, yh2);
-		ctx.quadraticCurveTo(-1 * x, y, xh1, y);
+		this.moveTo(xh2, y);
+		this.quadraticCurveTo(x, y, x, yh2);
+		this.lineTo(x, yh1);
+		this.quadraticCurveTo(x, -1 * y, xh2, -1 * y);
+		this.lineTo(xh1, -1 * y);
+		this.quadraticCurveTo(-1 * x, -1 * y, -1 * x, yh1);
+		this.lineTo(-1 * x, yh2);
+		this.quadraticCurveTo(-1 * x, y, xh1, y);
 
-		ctx.closePath();
+		this.closePath();
 
-		ctx.fill();
+		this.fill();
 
 	};
 
@@ -712,8 +774,8 @@
 			//cmd = 'context.matrix'
 
 			// Template animations.
-			opFade = opEffect(0.0, opacity, step, opEffect(opacity, 0.0, step, endChain(2)));
-			scaleFade = scaleEffect(0.5, 0.5, 1.0, 1.0, step, scaleEffect(1.0, 1.0, 0.5, 0.5, step, endChain(2)));
+			opFade = opEffect(0.0, opacity, step, opEffect(opacity, 0.0, step, endChain()));
+			scaleFade = scaleEffect(0.5, 0.5, 1.0, 1.0, step, scaleEffect(1.0, 1.0, 0.5, 0.5, step, endChain()));
 
 			var ghostFade = [ opFade, scaleFade ];
 
@@ -721,7 +783,7 @@
 				end_blur = context.max_shadow - 1;
 				start_blur = context.defaultShadowBlur;
 				blurFade = blurEffect(start_blur, end_blur, step, blurEffect(
-				end_blur, start_blur, step, endChain(2)));
+				end_blur, start_blur, step, endChain()));
 				ghostFade.push(blurFade);
 			}
 
@@ -761,27 +823,27 @@
 			canvas_elem = canvas_elem || this;
 
 			// One-way fade out animations.
-			opFadeOut = opEffect(1.0, 0.0, 10, endChain(1));
-			colorFadeOut = colorFadeEffect(color2, color1, 10, endChain(1));
-			scaleUp = scaleEffect(1.0, 1.0, 0.5, 0.5, 10, endChain(1));
+			opFadeOut = opEffect(1.0, 0.0, 10, endChain());
+			colorFadeOut = colorFadeEffect(color2, color1, 10, endChain());
+			scaleUp = scaleEffect(1.0, 1.0, 0.5, 0.5, 10, endChain());
 
 			var fadeOutSet = [ opFadeOut, colorFadeOut, scaleUp ];
 
 			// One-way fade in animations.
-			opFadeIn = opEffect(0.0, 1.0, 10, endChain(1));
-			colorFadeIn = colorFadeEffect(color1, color2, 10, endChain(1));
-   			scaleOut = scaleEffect(0.5, 0.5, 1.0, 1.0, 10, endChain(1));
+			opFadeIn = opEffect(0.0, 1.0, 10, endChain());
+			colorFadeIn = colorFadeEffect(color1, color2, 10, endChain());
+   			scaleOut = scaleEffect(0.5, 0.5, 1.0, 1.0, 10, endChain());
 
 			var fadeInSet = [ opFadeIn, colorFadeIn, scaleOut ];
 
 
                 	if(ctx.shadows){
 				bm = ctx.max_shadow;
-				blurFadeOut = blurEffect(bm, 0.0, 10, endChain(1));
-				shadowFadeOut = shadowColorFadeEffect(color2, color1, 10, endChain(1));
+				blurFadeOut = blurEffect(bm, 0.0, 10, endChain());
+				shadowFadeOut = shadowColorFadeEffect(color2, color1, 10, endChain());
 				
-				blurFadeIn = blurEffect(0, bm, 10, endChain(1));
-				shadowFadeIn = shadowColorFadeEffect(color1, color2, 10, endChain(1));
+				blurFadeIn = blurEffect(0, bm, 10, endChain());
+				shadowFadeIn = shadowColorFadeEffect(color1, color2, 10, endChain());
 
 				fadeOutSet.push(blurFadeOut);
 				fadeOutSet.push(shadowFadeOut);
@@ -798,7 +860,7 @@
 				if (ctx.current_piece != null
 					&& ctx.current_piece[0] != -1
 					&& ctx.current_piece[1] != -1) {
-					ctx.matrix[ctx.current_piece[0]][ctx.current_piece[1]][1] = copyEffect(fadeOutSet);
+					ctx.setAnim(ctx.current_piece[0], ctx.current_piece[1], copyEffect(fadeOutSet));
 					ctx.current_piece = [ -1, -1 ];
 				}
 
@@ -824,15 +886,14 @@
 				} else {
 					// Do a fade out on the last piece.
 					if ((ctx.current_piece[0] >= 0) && (ctx.current_piece[1] >= 0)) {
-						ctx.matrix[ctx.current_piece[0]][ctx.current_piece[1]][1] = copyEffect(fadeOutSet);
+						ctx.setAnim(ctx.current_piece[0], ctx.current_piece[1], copyEffect(fadeOutSet));
 					}
 
 					// Set this piece as the current piece.
 					ctx.current_piece[0] = grid_x;
 					ctx.current_piece[1] = grid_y;
 
-					ctx.matrix[grid_x][grid_y][1] = copyEffect(fadeInSet);
-
+					ctx.setAnim(grid_x, grid_y, copyEffect(fadeInSet));
 				}
 
 			});
@@ -862,42 +923,44 @@
 			// Draw points. (we can copy the effect here with slice(), as
 			// the array is flat.)
 			var fadeIn = opEffect(0.0, 1.0, 10, -1);
-			ctx.matrix[tl[0] + 1][tl[1]][1].push(fadeIn.slice());
-			ctx.matrix[tl[0] + 2][tl[1] + 1][1].push(fadeIn.slice());
-			ctx.matrix[tl[0]][tl[1] + 2][1].push(fadeIn.slice());
-			ctx.matrix[tl[0] + 1][tl[1] + 2][1].push(fadeIn.slice());
-			ctx.matrix[tl[0] + 2][tl[1] + 2][1].push(fadeIn.slice());
 
-			ctx.matrix[tl[0] + 1][tl[1]][0] = 1;
-			ctx.matrix[tl[0] + 2][tl[1] + 1][0] = 1;
-			ctx.matrix[tl[0]][tl[1] + 2][0] = 1;
-			ctx.matrix[tl[0] + 1][tl[1] + 2][0] = 1;
-			ctx.matrix[tl[0] + 2][tl[1] + 2][0] = 1;
+			ctx.addAnim(tl[0] + 1, tl[1], fadeIn.slice());
+			ctx.addAnim(tl[0] + 2, tl[1] + 1, fadeIn.slice());
+			ctx.addAnim(tl[0], tl[1] + 2, fadeIn.slice());
+			ctx.addAnim(tl[0] + 1, tl[1] + 2, fadeIn.slice());
+			ctx.addAnim(tl[0] + 2, tl[1] + 2, fadeIn.slice());
+			
+			ctx.setState(tl[0] + 1, tl[1], 1);
+			ctx.setState(tl[0] + 2, tl[1] + 1, 1);
+			ctx.setState(tl[0], tl[1] + 2, 1);
+			ctx.setState(tl[0] + 1, tl[1] + 2, 1);
+			ctx.setState(tl[0] + 2, tl[1] + 2, 1);
+
 
 			// Animations (copied with copyEffect)
 			step = 10;
 
 			var animSet = [
 					colorFadeEffect(tango[6][0], tango[1][0], step, 
-						colorFadeEffect(tango[1][0], tango[6][0], step, endChain(1))),
+						colorFadeEffect(tango[1][0], tango[6][0], step, endChain())),
 					scaleEffect(1, 1, 0.75, 0.75, 10, 
-						scaleEffect(0.75, 0.75, 1.0, 1.0, 10, endChain(1))) ];
+						scaleEffect(0.75, 0.75, 1.0, 1.0, 10, endChain())) ];
 
                 	if(ctx.shadows == true){
 				end_blur = ctx.max_shadow;
 				start_blur = ctx.defaultShadowBlur;
 				animSet.push(
 					shadowColorFadeEffect(tango[6][0], tango[1][0], step, 
-						shadowColorFadeEffect(tango[1][0], tango[6][0], step, endChain(1))));
+						shadowColorFadeEffect(tango[1][0], tango[6][0], step, endChain())));
 				animSet.push(
 					blurEffect(start_blur, end_blur, step, 
-						blurEffect(end_blur, start_blur, step, endChain(1))));
+						blurEffect(end_blur, start_blur, step, endChain())));
 			}
 
 			var animSet2 = [
-					opEffect(0.0, 0.6, 10, opEffect(0.6, 0.0, 10, endChain(1))),
+					opEffect(0.0, 0.6, 10, opEffect(0.6, 0.0, 10, endChain())),
 					scaleEffect(0.25, 0.25, 0.5, 0.5, 10, 
-						scaleEffect(0.5, 0.5, 0.25, 0.25, 10, endChain(1))) ];
+						scaleEffect(0.5, 0.5, 0.25, 0.25, 10, endChain())) ];
 
 			setInterval( function() {
 				used_val = true;
@@ -908,15 +971,14 @@
 					px = Math.floor(Math.random() * ctx.dimensions[0]);
 					py = Math.floor(Math.random() * ctx.dimensions[1]);
 
-					if (ctx.matrix[px][py][0] == 1) {
+					if (ctx.getState(px,py) == 1) {
 						used_val = false;
-					} else {
-						//ctx.matrix[px][py][1] = copyEffect(animSet2);
 					}
+					
 
 				} while (used_val)
 
-				ctx.matrix[px][py][1] = copyEffect(animSet);
+				ctx.setAnim(px, py, copyEffect(animSet));
 
 			}, 2000);
 
