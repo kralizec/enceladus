@@ -86,6 +86,16 @@
 	};
 
 	/**
+	 * Helper: Assemble RGB color to hex.
+	 */
+	rgbToHex = function(r, g, b) {
+		return '#'	+ r.toString(16)
+				+ g.toString(16)
+				+ b.toString(16);
+	};
+
+
+	/**
 	 * Build a color fade chain element. Takes hex or rgb color, and an
 	 * increment counter. TODO: Make the omission of one color cause it to be
 	 * the default. TODO: Detect bad values.
@@ -115,7 +125,8 @@
 			}
 		});
 
-		return [ 2, sc, deltas, increment, next ];
+		//return [ 2, sc, deltas, increment, next ];
+		return [ 2, increment, next, sc[0], sc[1], sc[2], deltas[0], deltas[1], deltas[2] ];
 
 	};
 
@@ -142,7 +153,8 @@
 		xd = (xe - xs) / inc;
 		yd = (ye - ys) / inc;
 
-		return [ 4, [ xs, ys ], [ xd, yd ], inc, next ];
+		//return [ 4, [ xs, ys ], [ xd, yd ], inc, next ];
+		return [ 4, inc, next, xs, ys, xd, yd ];
 
 	};
 
@@ -154,7 +166,8 @@
 
 		bd = (be - bs) / inc;
 
-		return [ 1, bs, bd, inc, next ];
+		//return [ 1, bs, bd, inc, next ];
+		return [ 1, inc, next, bs, bd ];
 
 	};
 
@@ -165,7 +178,8 @@
 
 		od = (oe - os) / inc;
 
-		return [ 0, os, od, inc, next ];
+		//return [ 0, os, od, inc, next ];
+		return [ 0, inc, next, os, od ];
 
 	};
 
@@ -175,7 +189,8 @@
 	 */
 	drawEffect = function(next){
 
-		return [ -1, null, null, 1, next];
+		//return [ -1, null, null, 1, next];
+		return [ -1, 1, next ];
 
 	};
 
@@ -184,7 +199,8 @@
 	 * Clear effect. Clears the pixel.
 	 */
 	clearEffect = function(next){
-		return [ -2, -1, -1, 1, next ];
+		//return [ -2, -1, -1, 1, next ];
+		return [ -2, 1, next ];
 	};
 
 	/**
@@ -334,6 +350,20 @@
 			// Initiate
 			context.effects = context.effects || effects;
 
+			// TODO: TEMP ONLY
+			context.frame = [];
+		
+			// Build the frame
+			context.buildFrame = function(aind,x,y){
+				for (i = 0; i < this.agrid[aind].length; i++) {
+					mt = this.agrid[aind][i];
+
+					context.frame.push([x,y,mt.slice()]);
+
+				}
+
+			};
+
 			// Create rendering func
 			context.renderFrame = function(aind,x,y,w,h){
 
@@ -347,11 +377,12 @@
 					this.translate((x * w) + (w / 2), (y * h) + (h / 2));
 
 					// Iterate through the animation array.
-					//for (i = 0; i < ctx.matrix[x][y][1].length; i++) {
-					//	mt = ctx.matrix[x][y][1][i];
 					for (i = 0; i < this.agrid[aind].length; i++) {
 						mt = this.agrid[aind][i];
 
+						// Mutator structure:
+						// [  0  ,    1     ,  2  ,  3  ,     ]
+						// [ type, mut_count, next, data, ... ]
 
 						// TODO: Add an endchain op for running a function after a given interval.
 						// (case-1)
@@ -360,7 +391,7 @@
 							draw_flag = false;
 							// TODO: Don't use eval here. Pass a closure.
 							//if(mt[1] != null){ eval(mt[1]); }
-							if(mt[1] != null){ mt[1](); }	
+							if(mt[3] != null){ mt[3](); }	
 							break;
 						case -2:
 							this.clearRect(-1 * (w / 2), h / 2, w, -1 * h);
@@ -369,43 +400,45 @@
 						case -1:
 							break;
 						case 0:
-							mt[1] += mt[2];
-							this.globalAlpha = mt[1];
+							mt[3] += mt[4];
+							this.globalAlpha = mt[3];
 							break;
 						case 1:
-							mt[1] += mt[2];
-							this.shadowBlur = mt[1];
+							mt[3] += mt[4];
+							this.shadowBlur = mt[3];
 							break;
 						case 2: // TODO: Color fades for multi-color draws.
-							mt[1][0] += mt[2][0];
-							mt[1][1] += mt[2][1];
-							mt[1][2] += mt[2][2];
-							this.fillStyle = rgbArrayToHex(mt[1]);
+							mt[3] += mt[6];
+							mt[4] += mt[7];
+							mt[5] += mt[8];
+							//this.fillStyle = rgbArrayToHex(mt[3]);
+							this.fillStyle = rgbToHex(mt[3],mt[4],mt[5]);
 							break;
 						case 3: // TODO: Color fades for multi-color draws.
-							mt[1][0] += mt[2][0];
-							mt[1][1] += mt[2][1];
-							mt[1][2] += mt[2][2];
-							this.shadowColor = rgbArrayToHex(mt[1]);
+							mt[3] += mt[6];
+							mt[4] += mt[7];
+							mt[5] += mt[8];
+							//this.shadowColor = rgbArrayToHex(mt[3]);
+							this.shadowColor = rgbToHex(mt[3],mt[4],mt[5]);
 							break;
 						case 4:
-							mt[1][0] += mt[2][0];
-							mt[1][1] += mt[2][1];
-							this.scale(mt[1][0], mt[1][1]);
+							mt[3] += mt[5];
+							mt[4] += mt[6];
+							this.scale(mt[3], mt[4]);
 							break;
 						}
 
 						// Decrease the mutator.
-						mt[3]--;
+						mt[1]--;
 
 						// Replace the endchain if the mutator is below 0.
-						if(mt[3] < 0){
+						if(mt[1] < 0){
 							draw_flag = false;
 							//ctx.matrix[x][y][1].splice(i, 1, mt[4]);
 
 							// TODO: Redo animation chaining. Make it flat.
 							// That should make for less overhead, and fewer errors.
-							this.agrid[aind].splice(i,1, mt[4]);
+							this.agrid[aind].splice(i,1, mt[2]);
 						}
 							
 
