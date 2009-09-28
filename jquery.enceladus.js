@@ -208,7 +208,8 @@
 	 * 
 	 */
 	endChain = function(command){
-		return [-3, command];
+		//return [-3, 0, null, command];
+		return [-3, 1, null, command];
 	};
 
     /**
@@ -286,6 +287,9 @@
         // TODO: Store animation deltas more sanely.
         // Execute grid allocated animations.
 	
+	// Reset the frame:
+	ctx.frame = [];
+
 	//for(i = 0; i < (h * w + w); i++){	
 	for (x = 0; x < ctx.dimensions[0]; x++) {
 		for (y = 0; y < ctx.dimensions[1]; y++) {
@@ -293,11 +297,14 @@
 			i = y * ctx.dimensions[0] + x;
 		
 			if(ctx.agrid[i].length > 0){
-				ctx.renderFrame(i,x,y,w,h);
+				//ctx. null,renderFrame(i,x,y,w,h);
+				ctx.buildFrame(i,x,y);
 			} 
 		}
 	}
 
+	// Do the render
+	ctx.renderFrame(w,h);
 
         // Execute delayed commands.
         for (x = 0; x < ctx.cmd_stack.length; x++){
@@ -355,17 +362,30 @@
 		
 			// Build the frame
 			context.buildFrame = function(aind,x,y){
-				for (i = 0; i < this.agrid[aind].length; i++) {
-					mt = this.agrid[aind][i];
 
-					context.frame.push([x,y,mt.slice()]);
-
-				}
+				// Clean the mutators.
+				//muts = this.agrid[aind]
+				////new_muts = [];
+				//for(i = 0; i < muts.length; i++){
+				//	if(muts[i][0] == -3 && muts[i][4] == -1){	
+				//		//new_muts.push(muts[i]);
+				//		muts.splice(i,1);
+				//	}
+				//}
+				//muts = new_muts;
+				//context.frame.push([x,y,muts]);
+				context.frame.push([x,y,this.agrid[aind]]);
 
 			};
 
 			// Create rendering func
-			context.renderFrame = function(aind,x,y,w,h){
+			//context.renderFrame = function(aind,x,y,w,h){
+			context.renderFrame = function(w,h){
+
+				for( z = 0; z < this.frame.length; z++){
+					x = this.frame[z][0];
+					y = this.frame[z][1];
+					muts = this.frame[z][2];
 
 					// Clear/Draw?
 					draw_flag = true;
@@ -377,8 +397,10 @@
 					this.translate((x * w) + (w / 2), (y * h) + (h / 2));
 
 					// Iterate through the animation array.
-					for (i = 0; i < this.agrid[aind].length; i++) {
-						mt = this.agrid[aind][i];
+					//for (i = 0; i < this.agrid[aind].length; i++) {
+					//	mt = this.agrid[aind][i];
+					for ( i = 0; i < muts.length; i++){
+						mt = muts[i];
 
 						// Mutator structure:
 						// [  0  ,    1     ,  2  ,  3  ,     ]
@@ -391,7 +413,8 @@
 							draw_flag = false;
 							// TODO: Don't use eval here. Pass a closure.
 							//if(mt[1] != null){ eval(mt[1]); }
-							if(mt[3] != null){ mt[3](); }	
+							if(mt[3] != null){ mt[3](); }
+							//mt[0] = -4;
 							break;
 						case -2:
 							this.clearRect(-1 * (w / 2), h / 2, w, -1 * h);
@@ -438,7 +461,12 @@
 
 							// TODO: Redo animation chaining. Make it flat.
 							// That should make for less overhead, and fewer errors.
-							this.agrid[aind].splice(i,1, mt[2]);
+							//this.agrid[aind].splice(i,1, mt[2]);
+							if(mt[0] == -3){
+								muts.splice(i,1);
+							} else {
+								muts.splice(i,1,mt[2]);	
+							}
 						}
 							
 
@@ -453,6 +481,7 @@
 
 					// Restore the context.
 					this.restore();
+				}
 
 			};
 
