@@ -68,157 +68,132 @@
 	/**
 	 * Helper: Hex color to RGB array.
 	 */
-	hexToRGB = function(hex) {
-		return [
-			parseInt(hex.substring(1, 3), 16),
-			parseInt(hex.substring(3, 5), 16),
-			parseInt(hex.substring(5, 7), 16)
-		];
-	};
+        hexToRGB = function(hex) {
+            return [
+                parseInt(hex.substring(1, 3), 16),
+                parseInt(hex.substring(3, 5), 16),
+                parseInt(hex.substring(5, 7), 16)
+            ];
+        };
 
 	/**
 	 * Helper: Assemble RGB color from array to hex.
 	 */
-	rgbArrayToHex = function(rgb) {
-		return '#'	+ rgb[0].toString(16)
-				+ rgb[1].toString(16)
-				+ rgb[2].toString(16);
-	};
+        rgbArrayToHex = function(rgb) {
+            return '#' + rgb[0].toString(16)
+                       + rgb[1].toString(16)
+                       + rgb[2].toString(16);
+        };
 
 	/**
 	 * Helper: Assemble RGB color to hex.
 	 */
-	rgbToHex = function(r, g, b) {
-		return '#'	+ r.toString(16)
-				+ g.toString(16)
-				+ b.toString(16);
-	};
-
+        rgbToHex = function(r, g, b) {
+            return '#' + r.toString(16)
+                       + g.toString(16)
+                       + b.toString(16);
+        };
 
 	/**
 	 * Build a color fade chain element. Takes hex or rgb color, and an
 	 * increment counter. TODO: Make the omission of one color cause it to be
 	 * the default. TODO: Detect bad values.
+         * FIXME: Get rid of stupid arrays.
 	 */
-	colorFadeEffect = function(start_color, end_color, increment, next) {
-		
-		sc = [ -1, -1, -1 ];
-		ec = [ -1, -1, -1 ];
+        colorFadeEffect = function(start_color, end_color, increment, next) {
 
-		if (start_color[0] == '#') {
-			sc = hexToRGB(start_color);
-		} else {
-			alert('implement');
-		}
+            var sc = [ -1, -1, -1 ];
+            var ec = [ -1, -1, -1 ];
 
-		if (end_color[0] == '#') {
-			ec = hexToRGB(end_color);
-		} else {
-			alert('implement');
-		}
+            if (start_color[0] == '#') {
+                sc = hexToRGB(start_color);
+            } else {
+                alert('implement');
+            }
 
-		deltas = [ sc[0] - ec[0], sc[1] - ec[1], sc[2] - ec[2] ].map( function(x) {
-			if (Math.abs(x) < increment) {
-				return 1;
-			} else {
-				return -1 * Math.round(x / (increment));
-			}
-		});
+            if (end_color[0] == '#') {
+                ec = hexToRGB(end_color);
+            } else {
+                alert('implement');
+            }
 
-		//return [ 2, sc, deltas, increment, next ];
-		return [ 2, increment, next, sc[0], sc[1], sc[2], deltas[0], deltas[1], deltas[2] ];
+            var deltas = [ sc[0] - ec[0], sc[1] - ec[1], sc[2] - ec[2] ].map( function(x) {
+                if (Math.abs(x) < increment) {
+                    return 1;
+                } else {
+                    return -1 * Math.round(x / (increment));
+                }
+            });
 
-	};
+            return [ 2, increment, next, sc[0], sc[1], sc[2], deltas[0], deltas[1], deltas[2] ];
+
+        };
 
 	/**
 	 * Build a shadow fade effect. We'll cheat here and just use the
 	 * colorFadeEffect and change the type from 2->3.
 	 */
-	shadowColorFadeEffect = function(start_color, end_color, increment, next) {
+        shadowColorFadeEffect = function(start_color, end_color, increment, next) {
+            var cf = colorFadeEffect(start_color, end_color, increment, next);
+            cf[0] = 3;
+            return cf;
+        };
 
-		cf = colorFadeEffect(start_color, end_color, increment, next);
+        /**
+         * Scale effect. Resizes a block. For now, this will only resize blocks
+         * safely if they don't overlap other blocks.
+         */
+        scaleEffect = function(xs, ys, xe, ye, inc, next) {
+            var xd = (xe - xs) / inc;
+            var yd = (ye - ys) / inc;
+            return [ 4, inc, next, xs, ys, xd, yd ];
+        };
 
-		cf[0] = 3;
+        /**
+         * Blur effect. Changes the blur dimensions on a block. [1, start_blur,
+         * blur_step, step, [1, end_blur, -1*blur_step, step, -1]]
+         */
+        blurEffect = function(bs, be, inc, next) {
+            var bd = (be - bs) / inc;
+            return [ 1, inc, next, bs, bd ];
+        };
 
-		return cf;
+        /**
+         * Opacity effect. Changes a block's opacity.
+         */
+        opEffect = function(os, oe, inc, next) {
+            var od = (oe - os) / inc;
+            return [ 0, inc, next, os, od ];
+        };
 
-	};
+        /**
+         * Trigger a draw effect. Draws a pixel with a specified color.
+         */
+        drawEffect = function(next){
+            return [ -1, 1, next ];
+        };
 
-	/**
-	 * Scale effect. Resizes a block. For now, this will only resize blocks
-	 * safely if they don't overlap other blocks.
-	 */
-	scaleEffect = function(xs, ys, xe, ye, inc, next) {
+        /**
+         * Clear effect. Clears the pixel.
+         */
+        clearEffect = function(next){
+            return [ -2, 1, next ];
+        };
 
-		xd = (xe - xs) / inc;
-		yd = (ye - ys) / inc;
+        /**
+         * End chain effect. Determines what to do after the animation.
+         * 
+         */
+        endChain = function(command){
+            return [-3, 1, null, command];
+        };
 
-		//return [ 4, [ xs, ys ], [ xd, yd ], inc, next ];
-		return [ 4, inc, next, xs, ys, xd, yd ];
-
-	};
-
-	/**
-	 * Blur effect. Changes the blur dimensions on a block. [1, start_blur,
-	 * blur_step, step, [1, end_blur, -1*blur_step, step, -1]]
-	 */
-	blurEffect = function(bs, be, inc, next) {
-
-		bd = (be - bs) / inc;
-
-		//return [ 1, bs, bd, inc, next ];
-		return [ 1, inc, next, bs, bd ];
-
-	};
-
-	/**
-	 * Opacity effect. Changes a block's opacity.
-	 */
-	opEffect = function(os, oe, inc, next) {
-
-		od = (oe - os) / inc;
-
-		//return [ 0, os, od, inc, next ];
-		return [ 0, inc, next, os, od ];
-
-	};
-
-
-	/**
-	 * Trigger a draw effect. Draws a pixel with a specified color.
-	 */
-	drawEffect = function(next){
-
-		//return [ -1, null, null, 1, next];
-		return [ -1, 1, next ];
-
-	};
-
-
-	/**
-	 * Clear effect. Clears the pixel.
-	 */
-	clearEffect = function(next){
-		//return [ -2, -1, -1, 1, next ];
-		return [ -2, 1, next ];
-	};
-
-	/**
-	 * End chain effect. Determines what to do after the animation.
-	 * 
-	 */
-	endChain = function(command){
-		//return [-3, 0, null, command];
-		return [-3, 1, null, command];
-	};
-
-    /**
-     * Delayed command.
-     */
-    delayExec = function(ctx, delay, command){
-        ctx.cmd_stack.push([0, delay, command]);
-    }
-
+        /**
+         * Delayed command.
+         */
+        delayExec = function(ctx, delay, command){
+            ctx.cmd_stack.push([0, delay, command]);
+        }
 
 	/**
 	 * Array deep copy. Needed to properly maintain effect chain integrity.
@@ -247,42 +222,45 @@
 	 * Randomly toggle matrix pixels with a specified animation chain. Pixels
 	 * are toggled off on method completion.
 	 */
-	randomBlock = function(ctx, blocks, animation) {
+        randomBlock = function(ctx, blocks, animation) {
+            var x, px, py, used_val, safety_counter; 
 
-		// Draw random blocks
-		for (x = 0; x < blocks; x++) {
-			used_val = true;
+            // Draw random blocks
+            for (x = 0; x < blocks; x++) {
+                used_val = true;
 
-			// Make sure we aren't maxing the grid. (max 5 guesses).
-			safety_counter = 5;
+                // Make sure we aren't maxing the grid. (max 5 guesses).
+                safety_counter = 5;
 
-			do {
-				px = Math.floor(Math.random() * ctx.dimensions[0]);
-				py = Math.floor(Math.random() * ctx.dimensions[1]);
+                do {
+                    px = Math.floor(Math.random() * ctx.dimensions[0]);
+                    py = Math.floor(Math.random() * ctx.dimensions[1]);
 
-				if (ctx.getState(px, py) == 0) {
-					used_val = false;
-					ctx.setState(px, py, 1);
+                    if (ctx.getState(px, py) == 0) {
+                        used_val = false;
+                        ctx.setState(px, py, 1);
 
-					// Set the animation.
-					ctx.setAnim(px, py, copyEffect(animation));
-				} else {
-					safety_counter--;
-				}
+                        // Set the animation.
+                        ctx.setAnim(px, py, copyEffect(animation));
+                    } else {
+                        safety_counter--;
+                    }
 
-			} while (used_val && safety_counter > 0)
+                } while (used_val && safety_counter > 0)
 
-		}
+            }
 
-	};
+        };
 
 	// Initiate the effects callback function.
 	effects = function() {
 
-		ctx = this;
+            var x,y,i,cmd;
 
-		w = ctx.block_dimensions[0];
-		h = ctx.block_dimensions[1];
+		var ctx = this;
+
+		var w = ctx.block_dimensions[0];
+		var h = ctx.block_dimensions[1];
 
         // TODO: Store animation deltas more sanely.
         // Execute grid allocated animations.
@@ -329,7 +307,6 @@
 	 * Set up the effects.
 	 */
 	$.fn.effectsSetup = function(){
-		if ($.browser.msie) { return; }
 		return this.each( function() {
 
 			// Initial checks...
@@ -343,8 +320,8 @@
 				return;
 			}
 
-
 			// Register the effects methods
+                        // FIXME: Make effect registration automatic.
 			context.shadowColorFadeEffect = shadowColorFadeEffect;
 			context.blurEffect = blurEffect;
 			context.opEffect = opEffect;
@@ -381,10 +358,14 @@
 			// Create rendering func
 			//context.renderFrame = function(aind,x,y,w,h){
 			context.renderFrame = function(w,h){
+                            var  z, x, y, draw_flag, muts, mt;
 
 				for( z = 0; z < this.frame.length; z++){
+                                    // TODO: Set a bunch of current params for the current render block.
 					x = this.frame[z][0];
 					y = this.frame[z][1];
+                                        this.x = x;
+                                        this.y = y;
 					muts = this.frame[z][2];
 
 					// Clear/Draw?
@@ -399,7 +380,7 @@
 					// Iterate through the animation array.
 					//for (i = 0; i < this.agrid[aind].length; i++) {
 					//	mt = this.agrid[aind][i];
-					for ( i = 0; i < muts.length; i++){
+					for (i = 0; i < muts.length; i++){
 						mt = muts[i];
 
 						// Mutator structure:
@@ -475,7 +456,8 @@
 					if (draw_flag) {
 
 						this.clearRect(-1 * (w / 2), h / 2, w, -1 * h);
-						drawBlock.call(this, x, y);
+						//drawBlock.call(this);
+                                                this.drawBlock()
 						
 					}
 
@@ -492,10 +474,9 @@
 
 	/**
 	 * Start the effects loop.
-     * Specify number of times to execute, and framerate.
+	 * Specify number of times to execute, and framerate.
 	 */
 	$.fn.effectsLoop = function(count, frame_rate) {
-		if ($.browser.msie) { return; }
 		return this.each( function() {
 
 			// Initial checks...
@@ -510,7 +491,7 @@
 			}
 
 			// Check framerate
-			frame_rate = frame_rate || 32;
+			var frame_rate = frame_rate || 32;
 
 
 			// Initiate
@@ -549,11 +530,11 @@
      	 * TODO: Accept a block generator function.
 	 */
 	$.fn.blockStyle = function() {
-		if ($.browser.msie) { return; }
 		return this.each( function() {
 
 			// Default block drawing func:
-			drawBlock = drawRoundedBlock;
+                        // TODO: This is an implicit global. It should not need to be.
+			this.drawBlock = drawRoundedBlock;
 
 			// Defaulting to tango blue
 			this.defaultStyle = tango[6][0];
@@ -563,10 +544,10 @@
 
 			// Default opacity.
 			this.defaultOpacity = 1.0;
-
-         	// Defaulting to shadows off
-            this.shadows = false;
-            this.max_shadow = 2;
+			
+			// Defaulting to shadows off
+			this.shadows = false;
+			this.max_shadow = 2;
 
 			this.defaultShadowBlur = this.max_shadow / 2;
 			//this.defaultShadow = jlaw_colors[0];
@@ -576,33 +557,31 @@
 
 	};
 
-	/**
-	 * Initialize shadow settings (FF  >=3.5).
-	 */
-	$.fn.blockShadows = function(shadow) {
-		if ($.browser.msie) { return; }
-		return this.each( function() {
-			// TODO: Calculate the shadow size and color.
-			var ctx = this.context;
+        /**
+         * Initialize shadow settings (FF  >=3.5).
+         */
+        $.fn.blockShadows = function(shadow) {
+            return this.each( function() {
+                // TODO: Calculate the shadow size and color.
+                var ctx = this.context;
 
-			// TODO: Better calculation!
-			shadow = shadow || ctx.block_dimensions[0] - (ctx.block_dimensions[0] * 0.90);
+                // TODO: Better calculation!
+                var shadow = shadow || ctx.block_dimensions[0] - (ctx.block_dimensions[0] * 0.90);
 
-			// Toggle shadows on.
-            ctx.shadows = true;
-			ctx.max_shadow = shadow;
+                // Toggle shadows on.
+                ctx.shadows = true;
+                ctx.max_shadow = shadow;
 
-			ctx.shadowBlur = ctx.defaultShadowBlur;
-			ctx.shadowColor = ctx.defaultShadow;
-		});
-	};
-                
+                ctx.shadowBlur = ctx.defaultShadowBlur;
+                ctx.shadowColor = ctx.defaultShadow;
+            });
+        };
+
 
 	/**
 	 * Initialize block size.
 	 */
 	$.fn.blockSize = function(x, y) {
-		if ($.browser.msie) { return; }
 		return this.each( function() {
 
 			// TODO: Auto calculation for a default block setting.
@@ -619,11 +598,10 @@
 	 * Initialize block shape.
 	 */
 	$.fn.blockShape = function(radix) {
-		if ($.browser.msie) { return; }
 		return this.each( function() {
 
 			//var radix = block_radix;
-			radix = radix || 15;
+			var radix = radix || 15;
 
 			// Make sure the radix given is compatible with the actual block
 			// dimensions.
@@ -646,19 +624,17 @@
 	/**
 	 * Set the block drawing func.
 	 */
-	$.fn.setBlockFunc = function(func) {
-		if ($.browser.msie) { return; }
-		return this.each( function() {
-			drawBlock = func;
-		});
-	};
+	//$.fn.setBlockFunc = function(func) {
+	//	return this.each( function() {
+	//		this.ctx.drawBlock = func;
+	//	});
+	//};
 
 
 	/**
 	 * Initialize the rendering context.
 	 */
 	$.fn.initContext = function() {
-		if ($.browser.msie) { return; }
 		return this.each( function() {
 
 			this.context = this.getContext('2d');
@@ -711,257 +687,255 @@
 		});
 	};
 
-	/**
-	 * Initialize a rendering matrix.
-	 */
-	$.fn.buildMatrix = function(x, y) {
-		if ($.browser.msie) { return; }
-		return this.each( function() {
+        /**
+         * Initialize a rendering matrix.
+         */
+        $.fn.buildMatrix = function(x, y) {
+            return this.each( function() {
+                    var i;
 
-				this.agrid = new Array(y * x + x);
-				this.sgrid = new Array(y * x + x);				
+                    this.agrid = new Array(y * x + x);
+                    this.sgrid = new Array(y * x + x);				
 
-				// TODO: Get rid of these and allow users to register their own additional state matrices.
-				this.tgrid = new Array(y * x + x);
+                    // TODO: Get rid of these and allow users to register their own additional state matrices.
+                    this.tgrid = new Array(y * x + x);
 
-				for(i = 0; i < (y * x + x); i++){
-					this.agrid[i] = [];
-					this.sgrid[i] = 0;
-					this.tgrid[i] = 0;
-				}
+                    for(i = 0; i < (y * x + x); i++){
+                        this.agrid[i] = [];
+                        this.sgrid[i] = 0;
+                        this.tgrid[i] = 0;
+                    }
 
-			// TODO: Virtual matrix
-			//this.matrix = function(){
-
-
-		// Build the actions stack
-		this.actions = [];
-
-            // Build command stack.
-            this.cmd_stack = [];
-
-		});
-
-	};
+                    // TODO: Virtual matrix
+                    //this.matrix = function(){
 
 
-	/**
-	 * Initialize a rendering grid.
-	 */
-	$.fn.gridSetup = function(x, y, block_radix) {
-		if ($.browser.msie) { return; }
-		return this.each( function() {
+                    // Build the actions stack
+                    this.actions = [];
 
-			// Initialize the context for this canvas.
-			$(this).initContext();
+                    // Build command stack.
+                    this.cmd_stack = [];
 
-			// Initialize block size,shape,colors,shadows.
-			$(this.context).blockSize(x, y);
-			$(this.context).blockShape(block_radix);
-			$(this.context).blockStyle();
-                	//$(this.context).blockShadows();
+                });
 
-			// Build the context grid.
-			$(this.context).buildMatrix(x, y);
+        };
 
-			// Setup the effects.
-			$(this).effectsSetup();
 
-		});
-	};
+        /**
+         * Initialize a rendering grid.
+         */
+        $.fn.gridSetup = function(x, y, block_radix) {
+            return this.each( function() {
+
+                    // Initialize the context for this canvas.
+                    $(this).initContext();
+
+                    // Initialize block size,shape,colors,shadows.
+                    $(this.context).blockSize(x, y);
+                    $(this.context).blockShape(block_radix);
+                    $(this.context).blockStyle();
+                    //$(this.context).blockShadows();
+
+                    // Build the context grid.
+                    $(this.context).buildMatrix(x, y);
+
+                    // Setup the effects.
+                    $(this).effectsSetup();
+
+                });
+        };
 
 
 	/////////////////
 	// Extras....
 	/////////////////
 
-	
-	/**
-	 * Rendering Helper: Draw a rounded block.
-	 * 
-	 */
-	drawRoundedBlock = function(x, y) {
 
-		// shorthand for the radix coeffs
-		hc1 = this.hcoeff_1;// * 2;
-		vc1 = this.vcoeff_1;// * 2;
+        /**
+         * Rendering Helper: Draw a rounded block.
+         * 
+         */
+        drawRoundedBlock = function() {
 
-		x = this.block_dimensions[0] / 2 - this.max_shadow;
-		y = this.block_dimensions[1] / 2 - this.max_shadow;
+            // shorthand for the radix coeffs
+            var hc1 = this.hcoeff_1;// * 2;
+            var vc1 = this.vcoeff_1;// * 2;
 
-		xh1 = -1 * x * hc1;
-		xh2 = x * hc1;
-		yh1 = -1 * y * vc1;
-		yh2 = y * vc1;
+            var x = this.block_dimensions[0] / 2 - this.max_shadow;
+            var y = this.block_dimensions[1] / 2 - this.max_shadow;
 
-		this.beginPath();
+            var xh1 = -1 * x * hc1;
+            var xh2 = x * hc1;
+            var yh1 = -1 * y * vc1;
+            var yh2 = y * vc1;
 
-		this.moveTo(xh2, y);
-		this.quadraticCurveTo(x, y, x, yh2);
-		this.lineTo(x, yh1);
-		this.quadraticCurveTo(x, -1 * y, xh2, -1 * y);
-		this.lineTo(xh1, -1 * y);
-		this.quadraticCurveTo(-1 * x, -1 * y, -1 * x, yh1);
-		this.lineTo(-1 * x, yh2);
-		this.quadraticCurveTo(-1 * x, y, xh1, y);
+            this.beginPath();
 
-		this.closePath();
+            this.moveTo(xh2, y);
+            this.quadraticCurveTo(x, y, x, yh2);
+            this.lineTo(x, yh1);
+            this.quadraticCurveTo(x, -1 * y, xh2, -1 * y);
+            this.lineTo(xh1, -1 * y);
+            this.quadraticCurveTo(-1 * x, -1 * y, -1 * x, yh1);
+            this.lineTo(-1 * x, yh2);
+            this.quadraticCurveTo(-1 * x, y, xh1, y);
 
-		this.fill();
+            this.closePath();
 
-	};
+            this.fill();
 
-
-	/**
-	 * Render a cool ghostly block effect on the selected canvas.
-	 */
-	$.fn.ghostBlocks = function(block_num, duration, speed) {
-		if ($.browser.msie) { return; }
-		return this.each( function() {
-
-			if (this.context == null) {
-				return;
-			}
-			var context = this.context;
-
-			speed = speed || 1000;
-
-			$(this).effectsLoop();
-
-			// Ghost animation.
-			opacity = 0.8;
-
-			step = 10;
-
-			//cmd = 'context.matrix'
-
-			// Template animations.
-			opFade = opEffect(0.0, opacity, step, opEffect(opacity, 0.0, step, endChain()));
-			scaleFade = scaleEffect(0.5, 0.5, 1.0, 1.0, step, scaleEffect(1.0, 1.0, 0.5, 0.5, step, endChain()));
-
-			var ghostFade = [ opFade, scaleFade ];
-
-                	if(context.shadows == true){
-				end_blur = context.max_shadow - 1;
-				start_blur = context.defaultShadowBlur;
-				blurFade = blurEffect(start_blur, end_blur, step, blurEffect(
-				end_blur, start_blur, step, endChain()));
-				ghostFade.push(blurFade);
-			}
-
-			// Draw random blocks at the specified interval.
-			context.random_interval = setInterval( function() {
-				randomBlock(context, block_num, ghostFade);
-			}, speed);
-
-			if (duration != null) {
-				setTimeout( 'clearInterval(' + context.random_interval + ')', duration);
-			}
-
-		});
-	};
-
-	/**
-	 * Makes a tile glow when moused over. Optionally, provide an overlay
-	 * element (the element that actually receives the mouse gestures)
-	 */
-	$.fn.glowTouch = function(canvas_elem, color2, color1) {
-		if ($.browser.msie) { return; }
-		return this.each( function() {
-
-			if (this.context == null) {
-				return;
-			}
-			var ctx = this.context;
-
-			color1 = color1 || tango[6][0];
-			color2 = color2 || tango[1][0];
-
-			// Ensure that the effects loop is initialized (idempotent).
-			$(this).effectsLoop();
-
-			// If no canvas element is specified, assume that this canvas
-			// will receive mouse events.
-			canvas_elem = canvas_elem || this;
-
-			// One-way fade out animations.
-			opFadeOut = opEffect(1.0, 0.0, 10, endChain());
-			colorFadeOut = colorFadeEffect(color2, color1, 10, endChain());
-			scaleUp = scaleEffect(1.0, 1.0, 0.5, 0.5, 10, endChain());
-
-			var fadeOutSet = [ opFadeOut, colorFadeOut, scaleUp ];
-
-			// One-way fade in animations.
-			opFadeIn = opEffect(0.0, 1.0, 10, endChain());
-			colorFadeIn = colorFadeEffect(color1, color2, 10, endChain());
-   			scaleOut = scaleEffect(0.5, 0.5, 1.0, 1.0, 10, endChain());
-
-			var fadeInSet = [ opFadeIn, colorFadeIn, scaleOut ];
+        };
 
 
-                	if(ctx.shadows){
-				bm = ctx.max_shadow;
-				blurFadeOut = blurEffect(bm, 0.0, 10, endChain());
-				shadowFadeOut = shadowColorFadeEffect(color2, color1, 10, endChain());
-				
-				blurFadeIn = blurEffect(0, bm, 10, endChain());
-				shadowFadeIn = shadowColorFadeEffect(color1, color2, 10, endChain());
+        /**
+         * Render a cool ghostly block effect on the selected canvas.
+         */
+        $.fn.ghostBlocks = function(block_num, duration, speed) {
+            return this.each( function() {
 
-				fadeOutSet.push(blurFadeOut);
-				fadeOutSet.push(shadowFadeOut);
+                    if (this.context == null) {
+                        return;
+                    }
+                    var context = this.context;
 
-				fadeInSet.push(blurFadeIn);
-				fadeInSet.push(shadowFadeIn);
+                    speed = speed || 1000;
 
-			}
+                    $(this).effectsLoop();
+
+                    // Ghost animation.
+                    var opacity = 0.8;
+
+                    var step = 10;
+
+                    //cmd = 'context.matrix'
+
+                    // Template animations.
+                    var opFade = opEffect(0.0, opacity, step, opEffect(opacity, 0.0, step, endChain()));
+                    var scaleFade = scaleEffect(0.5, 0.5, 1.0, 1.0, step, scaleEffect(1.0, 1.0, 0.5, 0.5, step, endChain()));
+
+                    var ghostFade = [ opFade, scaleFade ];
+
+                    if(context.shadows == true){
+                        var end_blur = context.max_shadow - 1;
+                        var start_blur = context.defaultShadowBlur;
+                        var blurFade = blurEffect(start_blur, end_blur, step, blurEffect(
+                                end_blur, start_blur, step, endChain()));
+                        ghostFade.push(blurFade);
+                    }
+
+                    // Draw random blocks at the specified interval.
+                    context.random_interval = setInterval( function() {
+                            randomBlock(context, block_num, ghostFade);
+                        }, speed);
+
+                    if (duration != null) {
+                        setTimeout( 'clearInterval(' + context.random_interval + ')', duration);
+                    }
+
+                });
+        };
+
+        /**
+         * Makes a tile glow when moused over. Optionally, provide an overlay
+         * element (the element that actually receives the mouse gestures)
+         */
+        $.fn.glowTouch = function(canvas_elem, color2, color1) {
+            return this.each( function() {
+
+                    if (this.context == null) {
+                        return;
+                    }
+                    var ctx = this.context;
+
+                    color1 = color1 || tango[6][0];
+                    color2 = color2 || tango[1][0];
+
+                    // Ensure that the effects loop is initialized (idempotent).
+                    // FIXME: Figure out scoping shit here!
+                    $(this).effectsLoop();
+
+                    // If no canvas element is specified, assume that this canvas
+                    // will receive mouse events.
+                    canvas_elem = canvas_elem || this;
+
+                    // One-way fade out animations.
+                    var opFadeOut = opEffect(1.0, 0.0, 10, endChain());
+                    var colorFadeOut = colorFadeEffect(color2, color1, 10, endChain());
+                    var scaleUp = scaleEffect(1.0, 1.0, 0.5, 0.5, 10, endChain());
+
+                    var fadeOutSet = [ opFadeOut, colorFadeOut, scaleUp ];
+
+                    // One-way fade in animations.
+                    var opFadeIn = opEffect(0.0, 1.0, 10, endChain());
+                    var colorFadeIn = colorFadeEffect(color1, color2, 10, endChain());
+                    var scaleOut = scaleEffect(0.5, 0.5, 1.0, 1.0, 10, endChain());
+
+                    var fadeInSet = [ opFadeIn, colorFadeIn, scaleOut ];
 
 
-			// Handle mouseout events correctly by fading the last piece
-			// touched.
-			$(canvas_elem).mouseout(function() {
-				if (ctx.current_piece != null
-					&& ctx.current_piece[0] != -1
-					&& ctx.current_piece[1] != -1) {
-					ctx.setAnim(ctx.current_piece[0], ctx.current_piece[1], copyEffect(fadeOutSet));
-					ctx.current_piece = [ -1, -1 ];
-				}
+                    if(ctx.shadows){
+                        var bm = ctx.max_shadow;
+                        var blurFadeOut = blurEffect(bm, 0.0, 10, endChain());
+                        var shadowFadeOut = shadowColorFadeEffect(color2, color1, 10, endChain());
 
-			});
+                        var blurFadeIn = blurEffect(0, bm, 10, endChain());
+                        var shadowFadeIn = shadowColorFadeEffect(color1, color2, 10, endChain());
 
-			// Fade in the piece the mouse is on, and fade out the last
-			// piece it was on if necessary.
-			$(canvas_elem).mousemove( function(e) {
+                        fadeOutSet.push(blurFadeOut);
+                        fadeOutSet.push(shadowFadeOut);
 
-				// Determine mouse position
-				px = e.pageX - this.offsetLeft;
-				py = e.pageY - this.offsetTop;
+                        fadeInSet.push(blurFadeIn);
+                        fadeInSet.push(shadowFadeIn);
 
-				// Retrieve canvas context
-				// Map mouse to grid box
-				grid_x = Math.floor((px) / (ctx.block_dimensions[0]));
-				grid_y = Math.floor((py) / (ctx.block_dimensions[1]));
+                    }
 
-				if (ctx.current_piece == null) {
-					ctx.current_piece = [ -1, -1 ];
-				} else if ((ctx.current_piece[0] == grid_x) && (ctx.current_piece[1] == grid_y)) {
-					return;
-				} else {
-					// Do a fade out on the last piece.
-					if ((ctx.current_piece[0] >= 0) && (ctx.current_piece[1] >= 0)) {
-						ctx.setAnim(ctx.current_piece[0], ctx.current_piece[1], copyEffect(fadeOutSet));
-					}
 
-					// Set this piece as the current piece.
-					ctx.current_piece[0] = grid_x;
-					ctx.current_piece[1] = grid_y;
+                    // Handle mouseout events correctly by fading the last piece
+                    // touched.
+                    $(canvas_elem).mouseout(function() {
+                            if (ctx.current_piece != null
+                                && ctx.current_piece[0] != -1
+                                && ctx.current_piece[1] != -1) {
+                                ctx.setAnim(ctx.current_piece[0], ctx.current_piece[1], copyEffect(fadeOutSet));
+                                ctx.current_piece = [ -1, -1 ];
+                            }
 
-					ctx.setAnim(grid_x, grid_y, copyEffect(fadeInSet));
-				}
+                        });
 
-			});
+                    // Fade in the piece the mouse is on, and fade out the last
+                    // piece it was on if necessary.
+                    $(canvas_elem).mousemove( function(e) {
 
-		});
-	};
+                            // Determine mouse position
+                            var px = e.pageX - this.offsetLeft;
+                            var py = e.pageY - this.offsetTop;
+
+                            // Retrieve canvas context
+                            // Map mouse to grid box
+                            var grid_x = Math.floor((px) / (ctx.block_dimensions[0]));
+                            var grid_y = Math.floor((py) / (ctx.block_dimensions[1]));
+
+                            if (ctx.current_piece == null) {
+                                ctx.current_piece = [ -1, -1 ];
+                            } else if ((ctx.current_piece[0] == grid_x) && (ctx.current_piece[1] == grid_y)) {
+                                return;
+                            } else {
+                                // Do a fade out on the last piece.
+                                if ((ctx.current_piece[0] >= 0) && (ctx.current_piece[1] >= 0)) {
+                                    ctx.setAnim(ctx.current_piece[0], ctx.current_piece[1], copyEffect(fadeOutSet));
+                                }
+
+                                // Set this piece as the current piece.
+                                ctx.current_piece[0] = grid_x;
+                                ctx.current_piece[1] = grid_y;
+
+                                ctx.setAnim(grid_x, grid_y, copyEffect(fadeInSet));
+                            }
+
+                        });
+
+                });
+        };
 
 
 	/**
@@ -969,7 +943,6 @@
 	 * 
 	 */
 	$.fn.drawGlider = function() {
-		if ($.browser.msie) { return; }
 		return this.each( function() {
 			if (this.context == null) {
 				return;
@@ -978,9 +951,9 @@
 
 			$(this).effectsLoop();
 
-			// Find the top left point of the area we will center the Glider on.
-			tl = [	Math.floor((ctx.dimensions[0] / 2) - 1),
-				Math.floor((ctx.dimensions[1] / 2) - 1) ];
+                        // Find the top left point of the area we will center the Glider on.
+                        var tl = [ Math.floor((ctx.dimensions[0] / 2) - 1),
+                                Math.floor((ctx.dimensions[1] / 2) - 1) ];
 
 			// Draw points. (we can copy the effect here with slice(), as
 			// the array is flat.)
@@ -1000,7 +973,7 @@
 
 
 			// Animations (copied with copyEffect)
-			step = 10;
+			var step = 10;
 
 			var animSet = [
 					colorFadeEffect(tango[6][0], tango[1][0], step, 
@@ -1009,8 +982,8 @@
 						scaleEffect(0.75, 0.75, 1.0, 1.0, 10, endChain())) ];
 
                 	if(ctx.shadows == true){
-				end_blur = ctx.max_shadow;
-				start_blur = ctx.defaultShadowBlur;
+				var end_blur = ctx.max_shadow;
+				var start_blur = ctx.defaultShadowBlur;
 				animSet.push(
 					shadowColorFadeEffect(tango[6][0], tango[1][0], step, 
 						shadowColorFadeEffect(tango[1][0], tango[6][0], step, endChain())));
@@ -1025,9 +998,9 @@
 						scaleEffect(0.5, 0.5, 0.25, 0.25, 10, endChain())) ];
 
 			setInterval( function() {
-				used_val = true;
-				px = -1;
-				py = -1;
+				var used_val = true;
+				var px = -1;
+				var py = -1;
 
 				do {
 					px = Math.floor(Math.random() * ctx.dimensions[0]);
